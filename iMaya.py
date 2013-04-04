@@ -3,7 +3,8 @@
 import os, sys, subprocess, tempfile, stat
 import pymel.core as pc
 import maya.cmds as cmds
-import utilities as util
+import iutilities as util
+print util
 import damExceptions as de
 #import maya.cmds as cmds
 #import traceback
