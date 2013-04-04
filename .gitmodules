@@ -1,3 +1,6 @@
-[submodule "iutitilies"]
-	path = iutitilies
+[submodule "iutilities"]
+	path = iutilities
+	url = r:/pipe_repo/users/hussain/utilities/iutilities
+[submodule "external/utilities"]
+	path = external/utilities
 	url = r:/pipe_repo/users/hussain/utilities/iutilities
