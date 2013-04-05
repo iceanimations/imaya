@@ -4,13 +4,43 @@ import os, sys, subprocess, tempfile, stat
 import pymel.core as pc
 import maya.cmds as cmds
 import iutilities as util
-print util
-import damExceptions as de
 #import maya.cmds as cmds
 #import traceback
-import external_dependencies as exdp
 import traceback
 
+class Arbitrary(object):
+    local_drives = ['c:', 'd:', r'\\']
+    presetGeo = {'camera': 'RenderCam',
+                 'geometry': 'SphereSurfaceShape',
+                 'path': r'r:\Pipe_Repo\Projects\DAM\Data\presetScene\ball.ma',
+                 'resolution': [256, 256]}
+conf = Arbitrary()
+
+class ExportError(Exception):
+    '''
+    Maya asset export failed.
+    '''
+    def __init__(self, *arg, **kwarg):
+        self.code = 0
+        self.error = "Export failed. Some error occured while exporting maya scene."
+        self.value = kwarg.get("obj","")
+        self.strerror = self.__str__()
+    def __str__(self):
+        return (self.value + ". " if self.value else "") + self.error
+
+
+class ShaderApplicationError(Exception):
+    '''
+    Unable to apply shader.
+    '''
+    def __init__(self, *arg, **kwarg):
+        self.code = 1
+        self.error = "Unable to apply shader"
+        self.strerror = self.__str__()
+    def __str__(self):
+        return "ShaderApplicationError: ", self.error
+
+    
 op = os.path
 
 def referenceExists(path):
@@ -190,7 +220,7 @@ def getOptionVars(key):
     return cmds.optionVar(q = key)
 
 def createComponentChecks():
-    return any((util.localPath(path, exdp.local_drives) for path in referenceInfo().values()))
+      return any((util.localPath(path, conf.local_drives) for path in referenceInfo().values()))
 
 def getFileNodes(selection):
     print pc.ls(sl = selection, rn = True)
@@ -268,7 +298,7 @@ def render(*arg, **kwarg):
     selection = pc.ls(sl = True)
     try:
         if kwarg.get("sg"):
-            presetGeo = exdp.presetGeo
+            presetGeo = conf.presetGeo
             with tempfile.NamedTemporaryFile(suffix = ".ma") as fobj:
                 shader = op.splitext(fobj.name)[0]
             pc.select(getShadingEngineHistoryChain(kwarg.get("sg").keys()[0]),
@@ -292,7 +322,7 @@ def render(*arg, **kwarg):
             result = (renImage + ".png", shader + ".ma")
             print "result: ", result
             if int(status) != 0 or not all(map(op.exists, result)):
-                raise de.ExportError(obj = kwarg["sg"].keys()[0])
+                raise ExportError(obj = kwarg["sg"].keys()[0])
     except BaseException as e:
         traceback.print_exc()
         raise e
@@ -307,7 +337,7 @@ int $format = `getAttr "defaultRenderGlobals.imageFormat"`;
 setAttr "defaultRenderGlobals.imageFormat" 8;
 playblast -frame $currFrame -format "image" -cf "{image}" -orn 0 -v 0 -wh {res} -p 100;
 setAttr "defaultRenderGlobals.imageFormat" $format;""".format(res =
-                                                              " ".join(map(str,exdp.presetGeo["resolution"])),
+                                                              " ".join(map(str, conf.presetGeo["resolution"])),
                                                               image =
                                                               snapLocation.replace("\\",
                                                                                    "/"))
@@ -459,7 +489,7 @@ def applyShaderToSelection(path):
                 break
             if len(sgs) > 1:
                 pc.warning("Number of shader were more then one but only applied " + str(sg))
-    except de.ShaderApplicationError as e:
+    except ShaderApplicationError as e:
         print e
         raise e
 
