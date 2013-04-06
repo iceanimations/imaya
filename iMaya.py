@@ -153,13 +153,13 @@ def newcomerObjs(func):
     after calling func
     '''
     def wrapper(*arg, **kwarg):
-        selection = pc.ls(sl = True)
-        cur = pc.ls()
+        selection = cmds.ls(sl = True)
+        cur = cmds.ls()
         print "newcomerObjs"
         print arg
         print kwarg
         func(*arg, **kwarg)
-        new = objSetDiff(pc.ls(), cur)
+        new = objSetDiff(cmds.ls(), cur)
         pc.select(selection)
         return new
     return wrapper
@@ -223,8 +223,8 @@ def createComponentChecks():
       return any((util.localPath(path, conf.local_drives) for path in referenceInfo().values()))
 
 def getFileNodes(selection):
-    print pc.ls(sl = selection, rn = True)
-    return [fileNode for obj in pc.ls(sl = selection,
+    print cmds.ls(sl = selection, rn = False)
+    return [fileNode for obj in cmds.ls(sl = selection,
                                       rn = False)
             for shader in filter(lambda hist: isinstance(hist,
                                                          pc.nt.ShadingEngine),
