@@ -4,8 +4,6 @@ import os, sys, subprocess, tempfile, stat
 import pymel.core as pc
 import maya.cmds as cmds
 import iutilities as util
-#import maya.cmds as cmds
-#import traceback
 import traceback
 
 class Arbitrary(object):
@@ -15,7 +13,6 @@ class Arbitrary(object):
                  'path': r'r:\Pipe_Repo\Projects\DAM\Data\presetScene\ball.ma',
                  'resolution': [256, 256]}
 conf = Arbitrary()
-
 class ExportError(Exception):
     '''
     Maya asset export failed.
