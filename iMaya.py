@@ -3,7 +3,7 @@
 import os, sys, subprocess, tempfile, stat
 import pymel.core as pc
 import maya.cmds as cmds
-import iutilities as util
+from . import iutilities as util
 import traceback
 
 class Arbitrary(object):
@@ -230,6 +230,13 @@ def getFileNodes(selection):
                                                                  pc.nt.File),
                                    getShadingEngineHistoryChain(shader))]
 
+def imageInRenderView():
+    ff = pc.getAttr('defaultRenderGlobals.imageFormat')
+    pc.setAttr('defaultRenderGlobals.imageFormat', 32)
+    render = wpc.renderWindowEditor('renderView', e=1, wi = util.getTemp(suffix = ".png"))
+    pc.setAttr('defaultRenderGlobals.imageFormat', ff)
+    return render[1]
+
 def renameFileNodePath(mapping):
     if not mapping:
         return False            # an exception should (idly) be raise
@@ -320,6 +327,10 @@ def render(*arg, **kwarg):
             print "result: ", result
             if int(status) != 0 or not all(map(op.exists, result)):
                 raise ExportError(obj = kwarg["sg"].keys()[0])
+            
+        else:
+            pc.runtime.mayaPreviewRenderIntoNewWindow()
+            result = imageInRenderView()
     except BaseException as e:
         traceback.print_exc()
         raise e
@@ -345,7 +356,7 @@ def selected():
     '''
     @return True, if selection exists in the current scene
     '''
-    s = pc.ls(sl = True)
+    s = pc.ls(sl = True, dag = True, geometry = True)
     if s:
         return True
     else:
