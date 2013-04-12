@@ -233,7 +233,7 @@ def getFileNodes(selection):
 def imageInRenderView():
     ff = pc.getAttr('defaultRenderGlobals.imageFormat')
     pc.setAttr('defaultRenderGlobals.imageFormat', 32)
-    render = wpc.renderWindowEditor('renderView', e=1, wi = util.getTemp(suffix = ".png"))
+    render = pc.renderWindowEditor('renderView', e=1, wi = util.getTemp(suffix = ".png"))
     pc.setAttr('defaultRenderGlobals.imageFormat', ff)
     return render[1]
 
