@@ -3,7 +3,7 @@
 import os, sys, subprocess, tempfile, stat
 import pymel.core as pc
 import maya.cmds as cmds
-from . import iutilities as util
+import iutilities as util
 import traceback
 
 class Arbitrary(object):
@@ -37,7 +37,7 @@ class ShaderApplicationError(Exception):
     def __str__(self):
         return "ShaderApplicationError: ", self.error
 
-    
+
 op = os.path
 
 def referenceExists(path):
