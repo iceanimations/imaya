@@ -5,6 +5,7 @@ import pymel.core as pc
 import maya.cmds as cmds
 import iutilities as util
 import traceback
+op = os.path
 
 class Arbitrary(object):
     local_drives = ['c:', 'd:', r'\\']
@@ -13,6 +14,7 @@ class Arbitrary(object):
                  'path': r'r:\Pipe_Repo\Projects\DAM\Data\presetScene\ball.ma',
                  'resolution': [256, 256]}
 conf = Arbitrary()
+
 class ExportError(Exception):
     '''
     Maya asset export failed.
@@ -25,7 +27,6 @@ class ExportError(Exception):
     def __str__(self):
         return (self.value + ". " if self.value else "") + self.error
 
-
 class ShaderApplicationError(Exception):
     '''
     Unable to apply shader.
@@ -36,9 +37,6 @@ class ShaderApplicationError(Exception):
         self.strerror = self.__str__()
     def __str__(self):
         return "ShaderApplicationError: ", self.error
-
-
-op = os.path
 
 def referenceExists(path):
     # get the existing references
@@ -73,50 +71,27 @@ def export (filename, filepath, selection = True, pr = True, *arg, **kwarg):
         traceback.print_exc()
         print e
         raise BaseException
+
 def extractShadersAndSave (filename, filepath, selection = True):
     '''
     extract all the shaders
     '''
     pass
 
-def referenceInfo(from_file = ""):
+def referenceInfo():
     '''
     Query all the top-level reference nodes in a file or in the currently open scene
     @from_file: "" if reference are to be extracted from the currently open scene,
                 or else from the provided maya file.
     @return: {refnode_fullpathname:file_path}
     '''
-    referenceNode={}
-    referenceList=cmds.ls(references=True)
-    referenceName = set()
-    referencePath=set()
-    for ref_List in referenceList:
+    refs =[]
+    for ref in pc.getReferences().values():
         try:
-            ref_Name=cmds.referenceQuery( ref_List, referenceNode=True, topReference=True )
-            ref_Path=cmds.referenceQuery( ref_Name,filename=True )
-            referenceName.add(ref_Name)
-            referencePath.add(ref_Path)
-        except BaseException as e:
-            print e
+            refs.append(str(ref.path))
+        except:
             continue
-    k=0
-    o=list(referencePath)
-    for referenceName in referenceName:
-        referenceNode[referenceName ]=o[k]
-        k+=1
-
-    if not from_file:
-        ref = dict()
-        for ref_list in cmds.ls(references = True):
-            try:
-                ref_Name = cmds.referenceQuery( ref_List, referenceNode = True, topReference = True )
-                ref_Path = cmds.referenceQuery( ref_Name, filename = True )
-                ref[ref_Name] = ref_Path
-            except BaseException as e:
-                print e
-                continue
-        return ref
-
+    return refs
 
 def objSetDiff(new, cur):
     
@@ -128,7 +103,6 @@ def objSetDiff(new, cur):
     diff = newSgs.difference(curSgs)
     return [obj for obj in diff]
     
-
 def newScene(func):
     '''
     Make a bare scene.
@@ -180,6 +154,7 @@ def addReference(paths=[], *arg, **kwarg):
                 cmds.file(path, r = True)
             except RuntimeError:
                 pc.error('file not found')
+
 @newScene
 @newcomerObjs
 def importScene(paths = [], *arg, **kwarg):
@@ -505,3 +480,4 @@ if __name__ == "__main__":
     for _ in xrange(1):
         snapshot()
     print "loaded"
+
