@@ -8,6 +8,8 @@ import traceback
 op = os.path
 
 class Arbitrary(object):
+    # iMaya depends on the following external attributes
+    # provided here incase it is not overridden by the user
     local_drives = ['c:', 'd:', r'\\']
     presetGeo = {'camera': 'RenderCam',
                  'geometry': 'SphereSurfaceShape',
@@ -45,7 +47,8 @@ def referenceExists(path):
     path = util.normpath(path)
     if path in exists: return True
 
-def export (filename, filepath, selection = True, pr = True, *arg, **kwarg):
+def export(filename, filepath, selection = True, pr = True,
+           *arg, **kwarg):
     '''
     '''
     path = os.path.join(filepath, filename)
@@ -72,7 +75,7 @@ def export (filename, filepath, selection = True, pr = True, *arg, **kwarg):
         print e
         raise BaseException
 
-def extractShadersAndSave (filename, filepath, selection = True):
+def extractShadersAndSave(filename, filepath, selection = True):
     '''
     extract all the shaders
     '''
@@ -235,10 +238,12 @@ def getShadingEngineHistoryChain(shader):
     return chain + [shader]
 
 def textureFiles(selection = True):
-    return list(set([util.normpath(textureFile) for fileNode in set(getFileNodes(selection))
-            if op.exists(util.normpath(pc.getAttr(fileNode + ".ftn")))
-            for textureFile in
-            util.getSequenceFiles(pc.getAttr(fileNode + ".ftn"))
+    return list(set([util.normpath(textureFile)
+                     for fileNode in set(getFileNodes(selection))
+                     if op.exists(util.normpath(
+                        pc.getAttr(fileNode + ".ftn")))
+                     for textureFile in
+                     util.getSequenceFiles(pc.getAttr(fileNode + ".ftn"))
                      + [util.normpath(pc.getAttr(fileNode + ".ftn"))]]))
 
 def _rendShader(shaderPath,
