@@ -88,10 +88,11 @@ def referenceInfo():
                 or else from the provided maya file.
     @return: {refnode_fullpathname:file_path}
     '''
-    refs =[]
+    refs = {}
     for ref in pc.getReferences().values():
+        print ref
         try:
-            refs.append(str(ref.path))
+            refs[ref] = str(ref.path)
         except:
             continue
     return refs
