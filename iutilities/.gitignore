@@ -1,0 +1,15 @@
+
+# python compiled modules
+*.py[c]
+
+
+# swap and back up files
+*.swp
+*~
+\#*
+
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
