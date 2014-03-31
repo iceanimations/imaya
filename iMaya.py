@@ -5,6 +5,7 @@ import pymel.core as pc
 import maya.cmds as cmds
 import iutilities as util
 import traceback
+import base64
 op = os.path
 
 class Arbitrary(object):
@@ -40,6 +41,21 @@ class ShaderApplicationError(Exception):
     def __str__(self):
         return "ShaderApplicationError: ", self.error
 
+class FileInfo(object):
+
+    @classmethod
+    def save(cls, key, value):
+        pc.fileInfo[key] = value
+    
+    @classmethod
+    def get(cls, key):
+        return pc.fileInfo.get(key, '').decode('unicode_escape')
+
+    @classmethod
+    def remove(cls, key):
+        if cls.get(key):
+            return pc.fileInfo.pop(key)
+        
 def referenceExists(path):
     # get the existing references
     exists = cmds.file(r = True, q = True)
@@ -484,6 +500,8 @@ def applyShaderToSelection(path):
     except ShaderApplicationError as e:
         print e
         raise e
+
+
 
 if __name__ == "__main__":
     for _ in xrange(1):
