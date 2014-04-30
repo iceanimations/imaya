@@ -8,7 +8,7 @@ import traceback
 import base64
 op = os.path
 
-class Arbitrary(object):
+class ArbitraryConf(object):
     # iMaya depends on the following external attributes
     # provided here incase it is not overridden by the user
     local_drives = ['c:', 'd:', r'\\']
@@ -16,7 +16,8 @@ class Arbitrary(object):
                  'geometry': 'SphereSurfaceShape',
                  'path': r'r:\Pipe_Repo\Projects\DAM\Data\presetScene\ball.ma',
                  'resolution': [256, 256]}
-conf = Arbitrary()
+
+conf = ArbitraryConf()
 
 class ExportError(Exception):
     '''
@@ -42,7 +43,7 @@ class ShaderApplicationError(Exception):
         return "ShaderApplicationError: ", self.error
 
 class FileInfo(object):
-
+    
     @classmethod
     def save(cls, key, value):
         pc.fileInfo[key] = value
@@ -50,12 +51,12 @@ class FileInfo(object):
     @classmethod
     def get(cls, key):
         return pc.fileInfo.get(key, '').decode('unicode_escape')
-
+    
     @classmethod
     def remove(cls, key):
         if cls.get(key):
             return pc.fileInfo.pop(key)
-        
+
 def referenceExists(path):
     # get the existing references
     exists = cmds.file(r = True, q = True)
@@ -64,7 +65,7 @@ def referenceExists(path):
     if path in exists: return True
 
 def export(filename, filepath, selection = True, pr = True,
-           *arg, **kwarg):
+           *args, **kwargs):
     '''
     '''
     path = os.path.join(filepath, filename)
@@ -82,9 +83,8 @@ def export(filename, filepath, selection = True, pr = True,
                               typ="mayaAscii",
                               pr = pr)
         else:
-            pc.exportAll(path + ".ma", force = True, typ = "mayaAscii", pr = pr)
-        
-        #util.setReadOnly(path + ".ma")
+            pc.exportAll(path + ".ma", force = True,
+                         typ = "mayaAscii", pr = pr)
         
     except BaseException as e:
         traceback.print_exc()
@@ -100,13 +100,10 @@ def extractShadersAndSave(filename, filepath, selection = True):
 def referenceInfo():
     '''
     Query all the top-level reference nodes in a file or in the currently open scene
-    @from_file: "" if reference are to be extracted from the currently open scene,
-                or else from the provided maya file.
     @return: {refnode_fullpathname:file_path}
     '''
     refs = {}
     for ref in pc.getReferences().values():
-        print ref
         try:
             refs[ref] = str(ref.path)
         except:
@@ -179,7 +176,7 @@ def addReference(paths=[], *arg, **kwarg):
 @newcomerObjs
 def importScene(paths = [], *arg, **kwarg):
     '''
-    imports the path
+    imports the paths
     @params:
             path: path to component (list)
     '''
@@ -192,7 +189,7 @@ def importScene(paths = [], *arg, **kwarg):
             try:
                 cmds.file(path, i = True)
             except RuntimeError:
-                pc.error('file not found')
+                pc.error('File not found.')
 
 def addOptionVar(key, value, array = True):
     '''
@@ -212,7 +209,8 @@ def getOptionVars(key):
     return cmds.optionVar(q = key)
 
 def createComponentChecks():
-      return any((util.localPath(path, conf.local_drives) for path in referenceInfo().values()))
+    # Doesn't belong here. Should be purged.
+    return any((util.localPath(path, conf.local_drives) for path in referenceInfo().values()))
 
 def getFileNodes(selection):
     print cmds.ls(sl = selection, rn = False)
@@ -362,7 +360,7 @@ def selected():
     else:
         return False
 
-def openComp(path, f = False):
+def openFile(path, f = False):
     pc.openFile(path, force = f)
 
 def getMeshes(selection = False):
