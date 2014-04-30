@@ -6,17 +6,11 @@ import random, os, shutil, warnings, re, stat, subprocess
 import time
 import hashlib
 import functools
-#import maya.cmds as cmds
-# import win32api
-# import win32con
-# import win32security
 import cProfile
 import tempfile
-#import pstats
 import itertools
 op = os.path
 import subprocess
-#import pymel.core as pc
 import datetime
 import collections
 from os.path import curdir, join, abspath, splitunc, splitdrive, sep, pardir
@@ -26,6 +20,7 @@ class memoize(object):
    If called later with the same arguments, the cached value is returned
    (not reevaluated).
    '''
+   
    def __init__(self, func):
       self.func = func
       self.cache = {}
@@ -86,6 +81,7 @@ def relpath(path, start=curdir):
     if not rel_list:
         return curdir
     return join(*rel_list)
+
 op.relpath = relpath
 
 def getTemp(mkd = False, suffix = "", prefix = "tmp", directory = None):
@@ -114,7 +110,8 @@ def mayaFile(path):
     return False
 
 def getIndPathComps(path):
-    ''' returns all the path components in a list seperately
+    '''
+    @return: all the path components in a list seperately
     '''
     comps = []
     split = op.split(path)
@@ -127,7 +124,7 @@ def getIndPathComps(path):
 
 def getPathComps(path):
     '''
-    returns the directory below path
+    @returns the directory below path
     '''
     #path = op.abspath(path)
     pathComps = []
@@ -226,7 +223,8 @@ def listdir(path, dirs = True):
 
 def localPath(path, localDrives):
     try:
-        return any((path.lower().find(local_drive) != -1 for local_drive in localDrives))
+        return any((path.lower().find(local_drive) != -1
+                    for local_drive in localDrives))
     except BaseException as e:
         print "localPath"
         raise e
@@ -260,6 +258,7 @@ def lowestConsecutiveUniqueFN(dirpath, basename, hasExt = True, key = op.exists)
                 break
 
     return basename
+
 lCUFN = lowestConsecutiveUniqueFN
 
 def silentShellCall(command): 
@@ -278,7 +277,7 @@ def setReadOnly(path):
 def purgeChar(string, pattern = r"\W", replace = ""):
     return re.sub(r"[%s]" %pattern, replace, str(string))
 
-def haveWritePermission(path, *arg, **kwarg):
+def haveWritePermission(path, sub = False):
 
     '''
     @return: True if the user has write permission in *path*
@@ -305,26 +304,8 @@ def haveWritePermission(path, *arg, **kwarg):
         else:
             return False
 
-#def assetExist(path):
-    #'''
-    #@path: The path which is to be searched for an asset
-    #@return: Path list of all the assets which are the path, empty list if none.
-    #'''
-
-    #good_paths = []
-    ## check if the path exists
-    #if not os.access(path, os.F_OK):
-        #warnings.warn('Path doesn\'t exist...')
-        #return
-    #dir_names = os.listdir(path)
-    #for d in dir_names:
-        ## pass only directories to 'leafNode function'
-        #if os.path.isdir(path+'/'+d):
-            #if leafNode(path + '/' + d):
-                #good_paths.append(path + '/' + d)
-    #return good_paths
-
 def scrollRight(self):
+   # Doesn't belong here
     if self.pathScrollArea.width() < self.pathWidget.width():
         w = self.pathWidget.width() - self.pathScrollArea.width()
         q = w/20
@@ -358,8 +339,7 @@ def longest_common_substring(s1, s2):
 def getParentWindowPos(parent, child, QtCore):
     parentCenter = QtCore.QPoint(parent.width()/2, parent.height()/2)
     childCenter = QtCore.QPoint(child.width()/2, child.height()/2)
-    return   parentCenter - childCenter
-
+    return  parentCenter - childCenter
 
 def getSequenceFiles(filepath):
     '''
@@ -367,7 +347,7 @@ def getSequenceFiles(filepath):
     directory. The sequence will be either negative or positive or both
     numerically increasing sequence.
 
-    The function is a reverse engineered version of what maya's file node
+    The function is a reverse engineered version of what Maya's file node
     uses for sequences.
     '''
     filename = normpath(filepath)
@@ -383,7 +363,8 @@ def getSequenceFiles(filepath):
                              '(-?)(\\d+)' + filext + '$').replace('.', '\\.'))
     #getting all the files from the directory and check whose names match the
     # sequence pattern
-    return [normpath(os.path.join(dirname,dbn)) for dbn in os.listdir(dirname)
+    return [normpath(os.path.join(dirname,dbn))
+            for dbn in os.listdir(dirname)
             if seqPattern.match(dbn)]
 
 def copyFilesTo(desPath, files = []):
@@ -393,23 +374,30 @@ def copyFilesTo(desPath, files = []):
     for fl in files:
         if op.isfile(fl) and op.exists(fl):
             desFile = op.join(desPath,
-                              lCUFN(desPath, op.basename(fl), hasExt = True, key = op.exists))
+                              lCUFN(desPath,
+                                    op.basename(fl), hasExt = True,
+                                    key = op.exists))
             shutil.copy2(fl, desFile)
             copiedTo.append(desFile)
         else: return copiedTo
     return copiedTo
 
 def lower(ls=[]):
+    '''
+    @ls: list of strings
+    @return: all the string lowercased in the form of a generator
+    '''
     try:
-        return (string.lower() for string in ls) if isinstance(ls, list) else (ls.lower() if isinstance(ls, str) else ls)
+        return ((string.lower() for string in ls)
+                if isinstance(ls, list)
+                else (ls.lower()
+                      if isinstance(ls, basestring) else ls))
     except BaseException as e:
-        
-        print "utl.lower"
-        raise e
+        print e
 
 def isDirInPath(dir, path):
     '''
-    returns True if the "dir" is in "path", else returns False
+    @return: True if the "dir" is in "path", else returns False
     '''
     dirs = pathSplitter(path)
     dirs = [str(x.lower()) for x in dirs]
@@ -419,17 +407,11 @@ def isDirInPath(dir, path):
     
 def gotoLocation(path):
     path = normpath(path)
-    subprocess.Popen('explorer /select' + ',' + path)
-
-def getOwner(path):
-    name = ""
-    try:
-        # sd = win32security.GetFileSecurity (path, win32security.OWNER_SECURITY_INFORMATION)
-        # owner_sid = sd.GetSecurityDescriptorOwner ()
-        # name, domain, type = win32security.LookupAccountSid (None, owner_sid)
-       pass
-    finally:
-        return name.split(".")
+    if os.name == 'nt':
+       subprocess.Popen('explorer /select' + ',' + path)
+    else:
+       # http://askubuntu.com/q/23596/44293
+       subprocess.Popen('xdg-open ' + path)
 
 def getFileMDate(path):
     return str(datetime.datetime.fromtimestamp(op.getmtime(path))).split('.')[0]
@@ -496,9 +478,9 @@ def profile(sort='cumulative', lines=50, strip_dirs=False):
         outer = outer(fun)
     return outer
 
-
 def getDirs(path):
-    if path and op.exists(path):
+    
+   if path and op.exists(path):
         return os.listdir(path)
 
 def timeMe(func):
@@ -510,11 +492,10 @@ def timeMe(func):
     return wrapper
 @timeMe
 def sha512OfFile(path):
-    
-    if not op.exists(path): raise Exception
+    if not op.exists(path):
+       raise Exception
     with open(path, "rb") as testFile:
         hash = hashlib.sha512()
-        
         while True:
             piece = testFile.read(1024**3)
             if piece:
@@ -522,17 +503,13 @@ def sha512OfFile(path):
             else: 
                 hex_hash = hash.hexdigest()
                 break
-        
     return hex_hash 
 
 def clearList(lis):
     try:
-        for i in range(len(lis)):
-            lis.pop()
-        return True
-    except: return False
+       del lis[:]
+    except:
+       return False
 
 if __name__ == "__main__":
-    file_path = "d:/user_files/hussain.parsaiyan/desktop"
-    file_name = "test4.ma"
-    print "loaded"
+   print __name__
