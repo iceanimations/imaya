@@ -212,9 +212,9 @@ def createComponentChecks():
     # Doesn't belong here. Should be purged.
     return any((util.localPath(path, conf.local_drives) for path in referenceInfo().values()))
 
-def getFileNodes(selection = False):
+def getFileNodes(selection = False, rn = False):
 
-    return pc.ls(type = 'file', sl = selection)
+    return pc.ls(type = 'file', sl = selection, rn = rn)
 
 def getShadingFileNodes(selection):
     return [fileNode for obj in cmds.ls(sl = selection,
@@ -255,26 +255,23 @@ def getShadingEngineHistoryChain(shader):
             and not isinstance(x, pc.nt.GroupId)])
     return chain + [shader]
 
-def textureFiles(selection = True):
+def textureFiles(selection = True, key = lambda x: True):
+
+    '''
+    @key: filter the tex with it
+    '''
 
     texs = []
     fileNodes = getFileNodes(selection)
 
-    texs += [pc.getAttr(fNode + '.ftn') for fNode in fileNodes]
+    texs += filter(key, (pc.getAttr(fNode + '.ftn') for fNode in fileNodes))
 
     for tex in texs[:]:
         if op.exists(tex):
             texs.extend(util.getSequenceFiles(tex))
+            
     return texs
     
-    return list(set([textureFile
-                     for fileNode in set(getFileNodes(selection))
-                     if op.exists(pc.getAttr(fileNode + ".ftn"))
-                     for textureFile in
-                     (util.getSequenceFiles(pc.getAttr(fileNode + ".ftn"))
-                     + [pc.getAttr(fileNode + ".ftn")]) else
-                     for textureFile in [pc.getAttr(fileNode + ".ftn")]]))
-
 def _rendShader(shaderPath,
                renderImagePath,
                geometry = r"SphereSurfaceShape",
