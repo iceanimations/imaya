@@ -28,6 +28,7 @@ class ExportError(Exception):
         self.error = "Export failed. Some error occured while exporting maya scene."
         self.value = kwarg.get("obj","")
         self.strerror = self.__str__()
+        
     def __str__(self):
         return (self.value + ". " if self.value else "") + self.error
 
@@ -39,6 +40,7 @@ class ShaderApplicationError(Exception):
         self.code = 1
         self.error = "Unable to apply shader"
         self.strerror = self.__str__()
+        
     def __str__(self):
         return "ShaderApplicationError: ", self.error
 
@@ -97,19 +99,17 @@ def extractShadersAndSave(filename, filepath, selection = True):
     '''
     pass
 
-def referenceInfo():
+def get_reference_paths():
     '''
     Query all the top-level reference nodes in a file or in the currently open scene
-    @return: {refnode_fullpathname:file_path}
+    @return: {refNode: path} of all level one scene references
     '''
     refs = {}
-    for ref in pc.getReferences().values():
-        try:
-            refs[ref] = str(ref.path)
-        except:
-            continue
+    for ref in pc.listReferences():
+        refs[ref] = str(ref.path)
     return refs
 
+referenceInfo = get_reference_paths
 def objSetDiff(new, cur):
     
     # curSg.union([pc.PyNode(obj) for obj in cur])
@@ -235,7 +235,7 @@ def imageInRenderView():
 
 def renameFileNodePath(mapping):
     if not mapping:
-        return False            # an exception should (idly) be raise
+        return False # an exception should (idly) be raise
     else:
         for fileNode in pc.ls(type= "file"):
             for path in mapping:
@@ -509,7 +509,97 @@ def applyShaderToSelection(path):
     except ShaderApplicationError as e:
         print e
         raise e
+    
+def make_cache(objs, frame_in, frame_out, directory, naming):
+    '''
+    :objs: list of sets and mesh whose cache is to be generated
+    :frame_in: start frame of the cache
+    :frame_out: end frame of the cache
+    :directory: the directory in which the caches are to be dumped
+    :naming: name of each obj's cache file. List of strings (order important)
+    '''
+    selection = pc.ls(sl = True)
+    flags = {"version": 5,
+             # whether to use the time slider as the range for which the
+             # cache is generated
+             "time_range_mode": 0,
+             "start_time": frame_in,
+             "end_time": frame_out,
+             "cache_file_dist": "OneFile",
+             "refresh_during_caching": 0,
+             "cache_dir": directory.replace('\\', "/"),
+             "cache_per_geo": "1",
+             "cache_name": "foobar",
+             "cache_name_as_prefix": 0,
+             "action_to_perform": "export",
+             "force_save": 0,
+             "simulation_rate": 1,
+             "sample_multiplier": 1,
+             "inherit_modf_from_cacha": 0,
+             "store_doubles_as_float":1,
+             "cache_format": "mcc"}
+    
+    combineMeshes = []
+    curSelection = []
+    pc.select(cl=True)
+    for objectSet in objs:
+        if (type(pc.PyNode(objectSet)) == pc.nt.ObjectSet):
+            pc.select(pc.PyNode(objectSet).members())
+            meshes = [shape
+                      for transform in pc.PyNode(objectSet).dsm.inputs(
+                              type = "transform")
+                      for shape in transform.getShapes(type = "mesh",
+                                                    ni = True)]
+            
+            combineMesh = pc.createNode("mesh")
+            pc.rename(combineMesh, objectSet.split(":")[-1]+"_tmp_cache"
+                      if objectSet.split(':') else combineMesh)
+            combineMeshes.append(combineMesh)
+            polyUnite = pc.createNode("polyUnite")
+            print meshes
+            for i in xrange(len(meshes)):
+                meshes[i].outMesh >> polyUnite.inputPoly[i]
+                meshes[i].worldMatrix[0] >> polyUnite.inputMat[i]
 
+            polyUnite.output >> combineMesh.inMesh
+            pc.select(cl=True)
+            objectSet = combineMesh
+        elif type(pc.PyNode(objectSet)) == pc.nt.Transform:
+            objectSet = objectSet.getShape(ni=True)
+        elif type(pc.PyNode(objectSet))!=pc.nt.Mesh:
+            continue
+            
+        curSelection.append(objectSet)
+        pc.select(curSelection)
+    try:
+        command =  'doCreateGeometryCache2 {version} {{ "{time_range_mode}", "{start_time}", "{end_time}", "{cache_file_dist}", "{refresh_during_caching}", "{cache_dir}", "{cache_per_geo}", "{cache_name}", "{cache_name_as_prefix}", "{action_to_perform}", "{force_save}", "{simulation_rate}", "{sample_multiplier}", "{inherit_modf_from_cacha}", "{store_doubles_as_float}", "{cache_format}"}};'.format(**flags)
+        print command
+        caches = pc.Mel.eval(command)
+
+        if naming and len(naming) == len(objs) == len(caches):
+            
+            for index in range(len(naming)):
+                dir = op.dirname(caches[index])
+                path_no_ext = op.splitext(caches[index])[0]
+                os.rename(path_no_ext + '.mc',
+                          op.join(dir, naming[index])
+                          + '.mc')
+                os.rename(path_no_ext + '.xml',
+                          op.join(dir, naming[index])
+                          + '.xml')
+                
+                map(caches.append, (op.join(dir, naming[index]) + '.xml',
+                                    op.join(dir, naming[index]) + '.mc'))
+                
+            caches = caches[len(naming):]
+    finally:
+        print combineMeshes
+        pc.delete(map(lambda x: x.getParent(),combineMeshes))
+        pc.select(selection)
+        # pc.informBox("Exported",
+        #              "All meshes in the list have been exported", "OK")
+        
+    return caches
 
 
 if __name__ == "__main__":
