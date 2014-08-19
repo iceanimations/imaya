@@ -28,7 +28,7 @@ class ExportError(Exception):
         self.error = "Export failed. Some error occured while exporting maya scene."
         self.value = kwarg.get("obj","")
         self.strerror = self.__str__()
-        
+
     def __str__(self):
         return (self.value + ". " if self.value else "") + self.error
 
@@ -40,20 +40,20 @@ class ShaderApplicationError(Exception):
         self.code = 1
         self.error = "Unable to apply shader"
         self.strerror = self.__str__()
-        
+
     def __str__(self):
         return "ShaderApplicationError: ", self.error
 
 class FileInfo(object):
-    
+
     @classmethod
     def save(cls, key, value):
         pc.fileInfo[key] = value
-    
+
     @classmethod
     def get(cls, key):
         return pc.fileInfo.get(key, '').decode('unicode_escape')
-    
+
     @classmethod
     def remove(cls, key):
         if cls.get(key):
@@ -73,7 +73,7 @@ def export(filename, filepath, selection = True, pr = True,
     path = os.path.join(filepath, filename)
     try:
         if selection:
-            
+
             pc.exportSelected(path,
                               force=True,
                               expressions = True,
@@ -87,7 +87,7 @@ def export(filename, filepath, selection = True, pr = True,
         else:
             pc.exportAll(path + ".ma", force = True,
                          typ = "mayaAscii", pr = pr)
-        
+
     except BaseException as e:
         traceback.print_exc()
         print e
@@ -111,7 +111,7 @@ def get_reference_paths():
 
 referenceInfo = get_reference_paths
 def objSetDiff(new, cur):
-    
+
     # curSg.union([pc.PyNode(obj) for obj in cur])
     curSgs = set([str(obj) for obj in cur])
     # newSg = pc.sets()
@@ -119,13 +119,13 @@ def objSetDiff(new, cur):
     newSgs = set([str(obj) for obj in new])
     diff = newSgs.difference(curSgs)
     return [obj for obj in diff]
-    
+
 def newScene(func):
     '''
     Make a bare scene.
     '''
     def wrapper(*arg, **kwarg):
-        
+
         if kwarg.get("newScene"):
             pc.newFile(f=True)
         else: pass
@@ -154,16 +154,17 @@ def newcomerObjs(func):
 
 @newScene
 @newcomerObjs
-def addReference(paths=[], *arg, **kwarg):
+def addReference(paths=[], dup = True, *arg, **kwarg):
     '''
     adds reference to the component at 'path' (str)
     @params:
             path: valid path to the asset dir (str)
             component: (Rig, Model, Shaded Model) (str)
+            dup: allow duplicate referencing
     '''
     for path in paths:
         # get the existing references
-        if referenceExists(path):
+        if not dup and referenceExists(path) :
             cmds.file(path, loadReference = True)
         # create reference
         else:
@@ -269,9 +270,9 @@ def textureFiles(selection = True, key = lambda x: True):
     for tex in texs[:]:
         if op.exists(tex):
             texs.extend(util.getSequenceFiles(tex))
-            
+
     return texs
-    
+
 def _rendShader(shaderPath,
                renderImagePath,
                geometry = r"SphereSurfaceShape",
@@ -280,7 +281,7 @@ def _rendShader(shaderPath,
                presetScenePath = r"d:\user_files\hussain.parsaiyan\Desktop\Scenes\V-Ray\V-Ray Ball Scene\ball.ma"):
     rl = "1:masterLayer"
     mel = """setAttr vraySettings.vfbOn 0; setAttr defaultRenderLayer.renderable 1; setAttr defaultRenderGlobals.animation 0; setAttr vraySettings.relements_enableall 0; setAttr vraySettings.relements_separateFolders 0; file -r \\"{shaderPath}\\"; $shader = ls(\\"-rn\\", \\"-type\\", \\"shadingEngine\\"); connectAttr \\"{geometry}.iog\\" ($shader[0] + \\".dsm[0]\\"); setAttr \\"vraySettings.vfbOn\\" 1;""".format(geometry = geometry, shaderPath = shaderPath.replace(r"\\", "\\").replace("\\", r"\\"))
-   
+
     r = "vray"
     x, y = res
     rd = op.dirname(renderImagePath)
@@ -322,7 +323,7 @@ def render(*arg, **kwarg):
             print "exported"
             with tempfile.NamedTemporaryFile(suffix = ".png") as fobj:
                 renImage = op.splitext(fobj.name)[0]
-           
+
             status = _rendShader(shader + ".ma",
                                  renImage,
                                  geometry = presetGeo["geometry"],
@@ -336,7 +337,7 @@ def render(*arg, **kwarg):
             print "result: ", result
             # if int(status) != 0 or not all(map(op.exists, result)):
             #     raise ExportError(obj = kwarg["sg"].keys()[0])
-            
+
         else:
             pc.runtime.mayaPreviewRenderIntoNewWindow()
             result = imageInRenderView()
@@ -344,7 +345,7 @@ def render(*arg, **kwarg):
         traceback.print_exc()
         raise e
     finally:
-        pc.select(selection, ne = True)        
+        pc.select(selection, ne = True)
     return result
 
 def snapshot():
@@ -360,7 +361,7 @@ setAttr "defaultRenderGlobals.imageFormat" $format;""".format(res =
                                                                                    "/"))
     pc.mel.eval(command)
     return snapLocation
-    
+
 def selected():
     '''
     @return True, if selection exists in the current scene
@@ -391,7 +392,7 @@ def getMeshes(selection = False):
             meshSet.add(mesh)
         else: pass
     return list(meshSet)
-    
+
 def getShadingEngines(selection = False):
     '''
     returns the materials and shading engines
@@ -405,7 +406,7 @@ def getShadingEngines(selection = False):
         #meshes = getMeshes(selection = selection)
         meshes = pc.ls(sl=True, dag=True, type='mesh')
         otherNodes = pc.ls(sl=True, dep=True)
-        meshes += otherNodes 
+        meshes += otherNodes
         for mesh in meshes:
             for s in pc.listConnections(mesh, type = 'shadingEngine'):
                 sg.add(s)
@@ -417,13 +418,13 @@ def getShadingEngines(selection = False):
         ds = x.displacementShader.inputs()
         vs = x.volumeShader.inputs()
         imgs = x.imageShader.inputs()
-        
+
         if ss: mtl = ss[0]
         elif ds: mtl = ds[0]
         elif vs: mtl = vs[0]
         elif imgs: mtl = imgs[0]
         else: continue
-            
+
         #x = str(x)
         mtl = str(mtl)
         if not mtl: continue
@@ -456,7 +457,7 @@ def addShadersToBin(binName, paths = [], new = True):
     '''
     if paths and any(map(op.exists, paths)):
         pc.runtime.HypershadeWindow()
-        pc.Mel.eval('refreshHyperShadeBinsUI "hyperShadePanel1Window|TearOffPane|hyperShadePanel1|mainForm|mainPane|createBarWrapForm|createAndOrganizeForm|createAndOrganizeTabs|Bins" true;')   
+        pc.Mel.eval('refreshHyperShadeBinsUI "hyperShadePanel1Window|TearOffPane|hyperShadePanel1|mainForm|mainPane|createBarWrapForm|createAndOrganizeForm|createAndOrganizeTabs|Bins" true;')
         thisBin = pc.Mel.eval('hyperShadeCreateNewBin("hyperShadePanel1Window|TearOffPane|hyperShadePanel1|mainForm|mainPane|createBarWrapForm|createAndOrganizeForm|createAndOrganizeTabs|Bins|binsScrollLayout|binsGridLayout", "%s")' %binName) if new else binName
     for path in paths:
         if op.exists(path):
@@ -467,7 +468,7 @@ def addShadersToBin(binName, paths = [], new = True):
 def createFileNodes(paths=[]):
     for path in paths:
         if op.exists(path):
-            # createNodes and setAttrs 
+            # createNodes and setAttrs
             fileNode = pc.shadingNode('file', asTexture=True)
             pc.setAttr(str(fileNode)+".ftn", path)
             placeNode = pc.shadingNode('place2dTexture', asUtility=True)
@@ -509,7 +510,7 @@ def applyShaderToSelection(path):
     except ShaderApplicationError as e:
         print e
         raise e
-    
+
 def make_cache(objs, frame_in, frame_out, directory, naming):
     '''
     :objs: list of sets and mesh whose cache is to be generated
@@ -538,7 +539,7 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
              "inherit_modf_from_cacha": 0,
              "store_doubles_as_float":1,
              "cache_format": "mcc"}
-    
+
     combineMeshes = []
     curSelection = []
     pc.select(cl=True)
@@ -550,7 +551,7 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
                               type = "transform")
                       for shape in transform.getShapes(type = "mesh",
                                                     ni = True)]
-            
+
             combineMesh = pc.createNode("mesh")
             pc.rename(combineMesh, objectSet.split(":")[-1]+"_tmp_cache"
                       if objectSet.split(':') else combineMesh)
@@ -568,7 +569,7 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
             objectSet = objectSet.getShape(ni=True)
         elif type(pc.PyNode(objectSet))!=pc.nt.Mesh:
             continue
-            
+
         curSelection.append(objectSet)
         pc.select(curSelection)
     try:
@@ -577,7 +578,7 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
         caches = pc.Mel.eval(command)
 
         if naming and len(naming) == len(objs) == len(caches):
-            
+
             for index in range(len(naming)):
                 dir = op.dirname(caches[index])
                 path_no_ext = op.splitext(caches[index])[0]
@@ -587,10 +588,10 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
                 os.rename(path_no_ext + '.xml',
                           op.join(dir, naming[index])
                           + '.xml')
-                
+
                 map(caches.append, (op.join(dir, naming[index]) + '.xml',
                                     op.join(dir, naming[index]) + '.mc'))
-                
+
             caches = caches[len(naming):]
     finally:
         print combineMeshes
@@ -598,7 +599,7 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
         pc.select(selection)
         # pc.informBox("Exported",
         #              "All meshes in the list have been exported", "OK")
-        
+
     return caches
 
 
@@ -606,4 +607,3 @@ if __name__ == "__main__":
     for _ in xrange(1):
         snapshot()
     print "loaded"
-
