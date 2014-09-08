@@ -163,7 +163,6 @@ def addReference(paths=[], dup = True, stripVersionInNamespace=True, *arg, **kwa
             component: (Rig, Model, Shaded Model) (str)
             dup: allow duplicate referencing
     '''
-    #file -r -type "mayaAscii" -gl -mergeNamespacesOnClash false -namespace "arrow" -options "v=0;" "D:/talha.ahmed/Documents/maya/projects/default/scenes/arrow.ma"
     for path in paths:
         namespace = os.path.basename(path)
         namespace = os.path.splitext(namespace)[0]
@@ -172,15 +171,6 @@ def addReference(paths=[], dup = True, stripVersionInNamespace=True, *arg, **kwa
             match = re.match('(.*)([-._]v\d+)(.*)', namespace)
             if match:
                 namespace = match.group(1) + match.group(3)
-        ## get the existing references
-        #if not dup and referenceExists(path) :
-            #cmds.file(path, loadReference = True)
-        ## create reference
-        #else:
-            #try:
-                #cmds.file(path, r = True)
-            #except RuntimeError:
-                #pc.error('file not found')
         cmds.file(path, r=True,
                 mnc=False, namespace=namespace)
 
