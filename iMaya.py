@@ -257,7 +257,7 @@ def getShadingEngineHistoryChain(shader):
             and not isinstance(x, pc.nt.GroupId)])
     return chain + [shader]
 
-def textureFiles(selection = True, key = lambda x: True):
+def textureFiles(selection = True, key = lambda x: True, getTxFiles=True):
 
     '''
     @key: filter the tex with it
@@ -271,6 +271,11 @@ def textureFiles(selection = True, key = lambda x: True):
     for tex in texs[:]:
         if op.exists(tex):
             texs.extend(util.getSequenceFiles(tex))
+        if getTxFiles:
+            txfile = util.getTxFile(tex)
+            if txfile:
+                texs.append(txfile)
+                texs.extend(util.getSequenceFiles(txfile))
 
     return texs
 

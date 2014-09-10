@@ -367,6 +367,21 @@ def getSequenceFiles(filepath):
             for dbn in os.listdir(dirname)
             if seqPattern.match(dbn)]
 
+def getTxFile(filepath):
+    '''
+    Get the sequence of files that are similar but with extension '.tx'
+    '''
+    filename = normpath(filepath)
+    dirname = op.dirname(filename)
+    basename = op.basename(filename)
+    filename, fileext = op.splitext(basename)
+    txPattern = re.compile(r'\.tx', re.IGNORECASE)
+    if not txPattern.match(fileext):
+        txFilename = op.join(dirname, filename + r'.tx')
+        if op.exists(txFilename):
+            return txFilename
+    return None
+
 def copyFilesTo(desPath, files = []):
     copiedTo = []
     if not op.exists(desPath) or not op.isdir(desPath):
