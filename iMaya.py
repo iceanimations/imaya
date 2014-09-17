@@ -3,9 +3,9 @@
 import os, sys, subprocess, tempfile, stat
 import pymel.core as pc
 import maya.cmds as cmds
-import iutilities as util
+import iutil as util
+reload(util)
 import traceback
-import base64
 op = os.path
 
 class ArbitraryConf(object):
