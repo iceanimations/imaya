@@ -7,6 +7,7 @@ import iutil as util
 reload(util)
 import traceback
 op = os.path
+import re
 
 class ArbitraryConf(object):
     # iMaya depends on the following external attributes
@@ -154,7 +155,7 @@ def newcomerObjs(func):
 
 @newScene
 @newcomerObjs
-def addReference(paths=[], dup = True, *arg, **kwarg):
+def addReference(paths=[], dup = True, stripVersionInNamespace=True, *arg, **kwarg):
     '''
     adds reference to the component at 'path' (str)
     @params:
@@ -163,15 +164,15 @@ def addReference(paths=[], dup = True, *arg, **kwarg):
             dup: allow duplicate referencing
     '''
     for path in paths:
-        # get the existing references
-        if not dup and referenceExists(path) :
-            cmds.file(path, loadReference = True)
-        # create reference
-        else:
-            try:
-                cmds.file(path, r = True)
-            except RuntimeError:
-                pc.error('file not found')
+        namespace = os.path.basename(path)
+        namespace = os.path.splitext(namespace)[0]
+        if stripVersionInNamespace:
+            # version part of the string is recognized as .v001
+            match = re.match('(.*)([-._]v\d+)(.*)', namespace)
+            if match:
+                namespace = match.group(1) + match.group(3)
+        cmds.file(path, r=True,
+                mnc=False, namespace=namespace)
 
 @newScene
 @newcomerObjs
@@ -256,7 +257,7 @@ def getShadingEngineHistoryChain(shader):
             and not isinstance(x, pc.nt.GroupId)])
     return chain + [shader]
 
-def textureFiles(selection = True, key = lambda x: True):
+def textureFiles(selection = True, key = lambda x: True, getTxFiles=True):
 
     '''
     @key: filter the tex with it
@@ -270,6 +271,11 @@ def textureFiles(selection = True, key = lambda x: True):
     for tex in texs[:]:
         if op.exists(tex):
             texs.extend(util.getSequenceFiles(tex))
+        if getTxFiles:
+            txfile = util.getTxFile(tex)
+            if txfile:
+                texs.append(txfile)
+                texs.extend(util.getSequenceFiles(txfile))
 
     return texs
 
