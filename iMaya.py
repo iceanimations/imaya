@@ -608,6 +608,21 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
 
     return caches
 
+def save_scene(ext):
+    type = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
+    cmds.file(save=True, type=type)
+
+def maya_version():
+    return int(re.search('\\d{4}', pc.about(v=True)).group())
+
+def is_modified():
+    return cmds.file(q=True, modified=True)
+
+def get_file_path():
+    return cmds.file(q=True, location=True)
+
+def rename_scene(name):
+    cmds.file(rename=name)
 
 if __name__ == "__main__":
     for _ in xrange(1):
