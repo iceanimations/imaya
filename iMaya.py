@@ -1,6 +1,6 @@
 # Date: Mon 26/11/2012
 
-import os, sys, subprocess, tempfile, stat
+import os, tempfile
 import pymel.core as pc
 import maya.cmds as cmds
 import iutil as util
@@ -257,6 +257,8 @@ def getShadingEngineHistoryChain(shader):
             and not isinstance(x, pc.nt.GroupId)])
     return chain + [shader]
 
+
+uvTilingModes = ['None', 'zbrush', 'mudbox', 'mari', 'explicit']
 def textureFiles(selection = True, key = lambda x: True, getTxFiles=True):
 
     '''
@@ -266,16 +268,35 @@ def textureFiles(selection = True, key = lambda x: True, getTxFiles=True):
     texs = []
     fileNodes = getFileNodes(selection)
 
-    texs += filter(key, (pc.getAttr(fNode + '.ftn') for fNode in fileNodes))
+    for fn in fileNodes:
+        filepath = pc.getAttr(fn + '.ftn')
+        uvTilingMode = uvTilingModes[0]
+        if pc.attributeQuery('uvTiling', node=fn, exists=True):
+            uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
+        else:
+            uvTilingMode = str(util.detectUdim(filepath))
 
-    for tex in texs[:]:
-        if op.exists(tex):
-            texs.extend(util.getSequenceFiles(tex))
-        if getTxFiles:
-            txfile = util.getTxFile(tex)
-            if txfile:
-                texs.append(txfile)
-                texs.extend(util.getSequenceFiles(txfile))
+        if uvTilingMode == 'None':
+            if key(filepath) and op.exists(filepath):
+                texs.append(filepath)
+            seqTex = util.getSequenceFiles(filepath)
+            texs.extend(seqTex)
+
+        elif uvTilingMode == 'explicit':
+            indices = pc.getAttr(fn + '.euvt')
+            for index in indices:
+                filepath = pc.getAttr(fn + '.eutn')
+                if op.exists(filepath):
+                    texs.append(filepath)
+
+        else:
+            texs.extend( util.getUVTiles( filepath, uvTilingMode ))
+
+    if getTxFiles:
+        for tex in texs:
+            txFile = util.getTxFile(filepath)
+            if txFile:
+                texs.append(txFile)
 
     return texs
 
@@ -330,7 +351,7 @@ def render(*arg, **kwarg):
             with tempfile.NamedTemporaryFile(suffix = ".png") as fobj:
                 renImage = op.splitext(fobj.name)[0]
 
-            status = _rendShader(shader + ".ma",
+            _rendShader(shader + ".ma",
                                  renImage,
                                  geometry = presetGeo["geometry"],
                                  cam = presetGeo["camera"],
