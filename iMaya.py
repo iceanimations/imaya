@@ -121,7 +121,7 @@ def objSetDiff(new, cur):
     diff = newSgs.difference(curSgs)
     return [obj for obj in diff]
 
-def newScene(func):
+def newScene(func = None):
     '''
     Make a bare scene.
     '''
@@ -134,7 +134,7 @@ def newScene(func):
         print arg
         print kwarg
         return func(*arg, **kwarg)
-    return wrapper
+    return wrapper if func else pc.newFile(f=True)
 
 def newcomerObjs(func):
     '''
