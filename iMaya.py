@@ -259,16 +259,16 @@ def getShadingEngineHistoryChain(shader):
 
 
 uvTilingModes = ['None', 'zbrush', 'mudbox', 'mari', 'explicit']
-def textureFiles(selection = True, key = lambda x: True, getTxFiles=True):
-
+def textureFiles(selection = True, key = lambda x: True, getTxFiles=True,
+        returnAsDict=False):
     '''
     @key: filter the tex with it
     '''
-
-    texs = []
+    ftn_to_texs = {}
     fileNodes = getFileNodes(selection)
 
     for fn in fileNodes:
+        texs = []
         filepath = pc.getAttr(fn + '.ftn')
         uvTilingMode = uvTilingModes[0]
         if pc.attributeQuery('uvTiling', node=fn, exists=True):
@@ -289,16 +289,22 @@ def textureFiles(selection = True, key = lambda x: True, getTxFiles=True):
                 if op.exists(filepath):
                     texs.append(filepath)
 
-        else:
+        else: # 'mari', 'zbrush', 'mudbox'
             texs.extend( util.getUVTiles( filepath, uvTilingMode ))
 
-    if getTxFiles:
-        for tex in texs:
-            txFile = util.getTxFile(filepath)
-            if txFile:
-                texs.append(txFile)
+        if getTxFiles:
+            for tex in texs:
+                txFile = util.getTxFile(tex)
+                if txFile:
+                    texs.append(txFile)
 
-    return texs
+        if texs:
+            ftn_to_texs[filepath] = texs
+
+    if returnAsDict:
+        return ftn_to_texs
+    else:
+        return reduce(lambda a,b: a+b, ftn_to_texs.values(), [])
 
 def _rendShader(shaderPath,
                renderImagePath,
