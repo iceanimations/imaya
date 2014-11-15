@@ -1,6 +1,6 @@
 # Date: Mon 26/11/2012
 
-import os, sys, subprocess, tempfile, stat
+import os, tempfile
 import pymel.core as pc
 import maya.cmds as cmds
 import iutil as util
@@ -257,27 +257,151 @@ def getShadingEngineHistoryChain(shader):
             and not isinstance(x, pc.nt.GroupId)])
     return chain + [shader]
 
-def textureFiles(selection = True, key = lambda x: True, getTxFiles=True):
+class SetDict(dict):
+    ''' A type of dictionary which can only have sets as its values and update
+    performs union on sets
+    '''
+    def __getitem__(self, key):
+        if not self.has_key(key):
+            self[key]=set()
+        return super(SetDict, self).__getitem__(key)
 
+    def __setitem__(self, key, val):
+        if not isinstance(val, set):
+            raise TypeError, 'value must be a set'
+        super(SetDict, self).__setitem__(key, val)
+
+    def get(self, key, *args, **kwargs):
+        return self.__getitem__(key)
+
+    def update(self, d):
+        if not isinstance(d, SetDict):
+            raise TypeError, "update argument must be a setDict"
+        for k, v in d.iteritems():
+            self[k].update(v)
+
+
+uvTilingModes = ['None', 'zbrush', 'mudbox', 'mari', 'explicit']
+def textureFiles(selection = True, key = lambda x: True, getTxFiles=True,
+        returnAsDict=False):
     '''
     @key: filter the tex with it
+    :rtype setDict:
     '''
-
-    texs = []
+    ftn_to_texs = SetDict()
     fileNodes = getFileNodes(selection)
 
-    texs += filter(key, (pc.getAttr(fNode + '.ftn') for fNode in fileNodes))
+    for fn in fileNodes:
+        texs = getTexturesFromFileNode(fn, key=key, getTxFiles=True)
+        ftn_to_texs.update(texs)
 
-    for tex in texs[:]:
-        if op.exists(tex):
-            texs.extend(util.getSequenceFiles(tex))
-        if getTxFiles:
-            txfile = util.getTxFile(tex)
-            if txfile:
-                texs.append(txfile)
-                texs.extend(util.getSequenceFiles(txfile))
+    if returnAsDict:
+        return ftn_to_texs
+    else:
+        return list(reduce(lambda a,b: a.union(b), ftn_to_texs.values(), set()))
+
+def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
+        getTexFiles=True):
+    ''' Given a Node of type file, get all the paths and texture files 
+    :type fn: pc.nt.File
+    '''
+    if not isinstance(fn, pc.nt.File):
+        if not pc.nodeType == 'file':
+            raise TypeError, '%s is not a file node' % fn
+
+    texs = SetDict()
+
+    filepath = getFullpathFromAttr(fn + '.ftn')
+    uvTilingMode = uvTilingModes[0]
+
+    # New in Maya 2015
+    if pc.attributeQuery('uvTilingMode', node=fn, exists=True):
+        uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
+
+    # still attempt to resolve using tokens in string
+    if uvTilingMode == 'None':
+        uvTilingMode = str(util.detectUdim(filepath))
+    elif not uvTilingMode == 'explicit':
+        filepath = getFullpathFromAttr(fn + '.cfnp')
+
+    # definitely no udim
+    if uvTilingMode == 'None':
+        if key(filepath) and op.exists(filepath):
+            texs[filepath].add(filepath)
+        if pc.getAttr(fn + '.useFrameExtension'):
+            seqTex = util.getSequenceFiles(filepath)
+            if seqTex:
+                texs[filepath].update(seqTex)
+
+    # explicit naming
+    elif uvTilingMode == 'explicit':
+        if key(filepath) and op.exists(filepath):
+            texs[filepath].add(filepath)
+        indices = pc.getAttr(fn + '.euvt', mi=True)
+        for index in indices:
+            filepath = getFullpathFromAttr(fn + '.euvt[%d].eutn'%index)
+            if key(filepath) and op.exists(filepath):
+                texs[filepath].add(filepath)
+
+    else: # 'mari', 'zbrush', 'mudbox'
+        texs[filepath].update( util.getUVTiles( filepath, uvTilingMode ))
+
+    if getTxFiles:
+        for k, files in texs.iteritems():
+            texs[k].update(filter(None,
+                [util.getFileByExtension(f) for f in files]))
+
+    if getTexFiles:
+        for k, files in texs.iteritems():
+            texs[k].update(filter(None,
+                [util.getFileByExtension(f, ext='tex') for f in files]))
 
     return texs
+
+def getFullpathFromAttr(attr):
+    ''' get full path from attr 
+    :type attr: pymel.core.general.Attribute
+    '''
+    val = pc.getAttr(unicode( attr ))
+    val = pc.workspace.expandName(val)
+    val = op.abspath(val)
+    return op.normpath(val)
+
+def remapFileNode(fn, mapping):
+    ''' Update file node with given mapping
+    '''
+    if not isinstance(fn, pc.nt.File):
+        if not pc.nodeType == 'file':
+            raise TypeError, '%s is not a file node' % fn
+
+    reverse = []
+    uvTilingMode = uvTilingModes[0]
+    if pc.attributeQuery('uvTilingMode', node=fn, exists=True):
+        uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
+
+    if uvTilingMode == 'None' or uvTilingMode == 'explicit':
+        path = getFullpathFromAttr(fn + '.ftn')
+        if mapping.has_key(path):
+            pc.setAttr(fn + '.ftn', mapping[path])
+            reverse.append((mapping[path], path))
+
+    if uvTilingMode == 'explicit':
+        reverse = []
+        indices = pc.getAttr(fn + '.euvt', mi=True)
+        for index in indices:
+            path = getFullpathFromAttr(fn + '.euvt[%d].eutn'%index)
+            if mapping.has_key(path):
+                pc.setAttr(fn + '.euvt[%d].eutn'%index, mapping[path])
+                reverse.append((mapping[path], path))
+
+    elif uvTilingMode in uvTilingModes[1:4]:
+        path = getFullpathFromAttr(fn + '.cfnp')
+        if mapping.has_key(path):
+            pc.setAttr(fn + '.ftn', mapping[path])
+            reverse.append( (mapping[path], path) )
+
+    return reverse
+
 
 def _rendShader(shaderPath,
                renderImagePath,
@@ -330,7 +454,7 @@ def render(*arg, **kwarg):
             with tempfile.NamedTemporaryFile(suffix = ".png") as fobj:
                 renImage = op.splitext(fobj.name)[0]
 
-            status = _rendShader(shader + ".ma",
+            _rendShader(shader + ".ma",
                                  renImage,
                                  geometry = presetGeo["geometry"],
                                  cam = presetGeo["camera"],
