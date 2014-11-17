@@ -8,6 +8,7 @@ reload(util)
 import traceback
 op = os.path
 import re
+import shutil
 
 class ArbitraryConf(object):
     # iMaya depends on the following external attributes
@@ -402,6 +403,43 @@ def remapFileNode(fn, mapping):
 
     return reverse
 
+def map_textures(mapping):
+    reverse = {}
+
+    for fileNode in getFileNodes():
+        for k, v in remapFileNode(fileNode, mapping):
+            reverse[k]=v
+
+    return reverse
+
+def collect_textures(dest, scene_textures=None):
+    '''
+    Collect all scene texturefiles to a flat hierarchy in a single directory while resolving
+    nameclashes
+
+    @return: {ftn: tmp}
+    '''
+
+    # normalized -> temp
+    mapping = {}
+    if not op.exists(dest):
+        return mapping
+
+    if not scene_textures:
+        scene_textures = textureFiles(selection = False, key = op.exists,
+                returnAsDict=True)
+
+    for myftn in scene_textures:
+        if mapping.has_key(myftn):
+            continue
+        ftns, texs = util.find_related_ftns(myftn, scene_textures.copy())
+        newmappings=util.lCUFTN(dest, ftns, texs)
+        for fl, copy_to in newmappings.items():
+            if op.exists(fl):
+                shutil.copy(fl, copy_to)
+        mapping.update(newmappings)
+
+    return mapping
 
 def _rendShader(shaderPath,
                renderImagePath,
