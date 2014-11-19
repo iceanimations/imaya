@@ -364,7 +364,7 @@ def getFullpathFromAttr(attr):
     :type attr: pymel.core.general.Attribute
     '''
     val = pc.getAttr(unicode( attr ))
-    val = pc.workspace.expandName(val)
+    val = pc.workspace(en=val)
     val = op.abspath(val)
     return op.normpath(val)
 
