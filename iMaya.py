@@ -73,6 +73,7 @@ def export(filename, filepath, selection = True, pr = True,
     '''
     '''
     path = os.path.join(filepath, filename)
+    filetype = cmds.file(q=True, typ=True)[0]
     try:
         if selection:
 
@@ -84,11 +85,11 @@ def export(filename, filepath, selection = True, pr = True,
                               shader = True,
                               constraints = True,
                               options="v=0",
-                              typ="mayaAscii",
+                              typ=filetype,
                               pr = pr)
         else:
-            pc.exportAll(path + ".ma", force = True,
-                         typ = "mayaAscii", pr = pr)
+            pc.exportAll(path , force = True,
+                         typ = filetype, pr = pr)
 
     except BaseException as e:
         traceback.print_exc()
@@ -785,6 +786,33 @@ def get_file_path():
 
 def rename_scene(name):
     cmds.file(rename=name)
+
+def findUIObjectByLabel(parentUI, objType, label, case=True):
+    try:
+        if not case:
+            label = label.lower()
+        try:
+            parentUI = pc.uitypes.Layout(parentUI)
+        except:
+            parentUI = pc.uitypes.Window(parentUI)
+
+        for child in parentUI.getChildren():
+            child
+            if isinstance(child, objType):
+                thislabel = child.getLabel()
+                if not case:
+                    thislabel = thislabel.lower()
+
+                if label in thislabel:
+                    return child
+            if isinstance(child, pc.uitypes.Layout):
+                obj = findUIObjectByLabel(child, objType, label, case)
+                if obj:
+                    return obj
+
+    except Exception as e:
+        print parentUI, e
+        return None
 
 if __name__ == "__main__":
     for _ in xrange(1):
