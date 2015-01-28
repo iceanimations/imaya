@@ -864,7 +864,7 @@ def getImageFilePrefix():
     else:
         prefix = pc.SCENE.vraySettings.fileNamePrefix.get()
     if not prefix:
-        prefix = op.splitext(op.basename(get_file_path))[0]
+        prefix = op.splitext(op.basename(get_file_path()))[0]
     return prefix
 
 
