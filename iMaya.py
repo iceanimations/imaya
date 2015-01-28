@@ -9,6 +9,7 @@ import traceback
 op = os.path
 import re
 import shutil
+from collections import OrderedDict
 
 class ArbitraryConf(object):
     # iMaya depends on the following external attributes
@@ -813,6 +814,238 @@ def findUIObjectByLabel(parentUI, objType, label, case=True):
     except Exception as e:
         print parentUI, e
         return None
+
+def getProjectPath():
+    return pc.workspace(q=True, o=True)
+
+def setProjectPath(path):
+    if op.exists(path):
+        pc.workspace(e=True, o=path)
+        return True
+
+def getCameras(renderableOnly=True, ignoreStartupCameras=True):
+    return [cam  for cam in pc.ls(type='camera') 
+            if ((not renderableOnly or cam.renderable.get()) and
+                (not ignoreStartupCameras or not cam.getStartupCamera()))]
+
+def isAnimationOn():
+    return pc.SCENE.defaultRenderGlobals.animation.get()
+
+def currentRenderer():
+    renderer = pc.SCENE.defaultRenderGlobals.currentRenderer.get()
+    if renderer == '_3delight':
+        renderer = '3delight'
+    return renderer
+
+def getRenderLayers(nonReferencedOnly=True, renderableOnly=True):
+    return [layer for layer in pc.ls(exactType='renderLayer')
+            if ((not nonReferencedOnly or not layer.isReferenced()) and 
+                    (not renderableOnly or layer.renderable.get())) and 
+            not re.match(r'.*defaultRenderLayer\d+', str(layer))]
+
+def getResolution():
+    res = ( 320, 240 )
+    if currentRenderer() != "vray":
+        renderGlobals = pc.ls(renderGlobals=True)
+        if renderGlobals:
+            resNodes = renderGlobals[0].resolution.inputs()
+            if resNodes:
+                res = (resNodes[0].width.get(), resNodes[0].height.get())
+    else:
+        res = (pc.SCENE.vraySettings.width.get(),
+                pc.SCENE.vraySettings.height.get())
+    return res
+
+
+def getImageFilePrefix():
+    prefix = ""
+    if currentRenderer != "vray":
+        prefix = pc.SCENE.defaultRenderGlobals.imageFilePrefix.get()
+    else:
+        prefix = pc.SCENE.vraySettings.fileNamePrefix.get()
+    if not prefix:
+        prefix = op.splitext(op.basename(get_file_path))[0]
+    return prefix
+
+
+def getRenderPassNames(enabledOnly=True, nonReferencedOnly=True):
+    renderer = currentRenderer()
+    if renderer == 'arnold':
+        return [aov.attr('name').get() for aov in pc.ls(type='aiAOV') 
+                if ((not enabledOnly or aov.enabled.get()) and 
+                    (not nonReferencedOnly or not aov.isReferenced()))]
+    elif renderer == 'redshift':
+        aovs = [aov.attr('aovType').get() for aov in pc.ls(type='RedshiftAOV')
+                if ((not enabledOnly or aov.enabled.get()) and 
+                    (not nonReferencedOnly or not aov.isReferenced()))]
+
+        finalaovs = set()
+        for aov in aovs:
+            aov = aov.replace(" ", "")
+            newaov = aov
+            count = 1
+            while newaov in finalaovs:
+                newaov = aov + str(count)
+                count += 1
+            finalaovs.add(newaov)
+        return list(finalaovs)
+
+    else:
+        return []
+
+frameno_re = re.compile(r'\d+')
+renderpass_re = re.compile('<renderpass>', re.I)
+def removeLastNumber(path, bychar='?'):
+    numbers = frameno_re.findall(path)
+    if numbers:
+        pos = path.rfind(numbers[-1])
+        path = path[:pos] + path[pos:].replace(numbers[-1],  bychar * len(numbers[-1]))
+        return path, numbers[-1]
+    return path, ''
+
+
+
+def resolveAOVsInPath(path, layer, cam, framePadder='?'):
+    paths = []
+    renderer = currentRenderer()
+
+
+    if renderer == 'redshift':
+        tokens = OrderedDict()
+
+        tokens['<beautypath>']=op.dirname(path)
+
+        basename = op.basename(path)
+        if isAnimationOn():
+            basename, number = removeLastNumber(basename, '')
+        basename = op.splitext(basename)[0]
+        if basename.endswith('.'):
+            basename = basename[:-1]
+        tokens['<beautyfile>']=basename
+
+        tokens['<camera>']=re.sub(r'\.|:', '_', str(cam))
+        tokens['<layer>']=re.sub(r'\.|:', '_', str(layer))
+
+        sceneName, ext=op.splitext(op.basename(pc.sceneName()))
+        if not sceneName:
+            sceneName = pc.untitledFileName()
+        tokens['<scene>']=sceneName
+
+        renderpasses = set()
+        for aov in filter(lambda x:x.enabled.get(), pc.ls(type='RedshiftAOV')):
+
+            newpath = aov.filePrefix.get()
+
+            renderpass = aov.aovType.get().replace(' ', '')
+            count = 1
+            rp = renderpass
+            while rp in renderpasses:
+                rp = renderpass + str(count)
+                count +=1
+            renderpass = rp
+            renderpasses.add(renderpass)
+
+            tokens['<renderpass>'] = tokens['<aov>'] = renderpass
+            tokens['<renderlayer>'] = renderpass
+
+            for key, value in tokens.items():
+                newpath = re.compile(key, re.I).sub(value, newpath)
+
+            newpath = newpath+'.'+number+ext
+            paths.append(newpath)
+
+
+    elif renderer == 'arnold':
+        if not renderpass_re.search(path):
+            return [path]
+        passes = getRenderPassNames()
+        if not passes:
+            passes = ['']
+        for pas in passes:
+            paths.append(renderpass_re.sub(pas, path))
+
+    else:
+        paths.append( renderpass_re.sub(path, '') )
+
+    return paths
+
+
+def getGenericImageName(layer='', camera='', resolveAOVs=True, framePadder='?'):
+    gins = []
+
+    fin = pc.renderSettings(fin=True, lut=True, layer=layer, camera=camera)
+    path = fin[0]
+
+    if resolveAOVs:
+        gins = resolveAOVsInPath(path, layer, camera, framePadder)
+    if not gins:
+        gins = [path]
+    if isAnimationOn():
+        gins = [removeLastNumber(gin, framePadder)[0] for gin in gins]
+
+    return gins
+
+
+def getOutputFilePaths(renderLayer=None, useCurrentLayer=False,
+        camera = None, useCurrentCamera=False, ignoreStartupCameras=True,
+        switchToLayer=False, framePadder='?'):
+    outputFilePaths = []
+
+    renderLayers = None
+    if renderLayer:
+        renderLayers = [renderLayer]
+    elif not useCurrentLayer:
+        layers = getRenderLayers()
+        if layers:
+            renderLayers = layers
+    if renderLayers is None:
+        renderLayers = ['']
+
+    for layer in renderLayers:
+
+        if layer != pc.editRenderLayerGlobals(q=1, crl=1) and switchToLayer:
+            pc.editRenderLayerGlobals(crl=layer)
+
+        cameras = None
+        if camera:
+            cameras = [camera]
+        elif not useCurrentCamera:
+            cams = getCameras(True, ignoreStartupCameras)
+            if cams:
+                cameras = cams
+        if cameras is None:
+            cameras = ['']
+
+        for cam in cameras:
+            gins = getGenericImageName(layer=layer, camera=cam,
+                    framePadder=framePadder)
+            outputFilePaths.extend(gins)
+
+    return outputFilePaths
+
+def getImagesLocation(workspace=None):
+    if workspace:
+        return pc.workspace(workspace, en=pc.workspace(workspace,
+            fre='images'))
+    else:
+        return pc.workspace(en=pc.workspace(fre='images'))
+
+def getFrameRange():
+    if isAnimationOn():
+        frange = (pc.SCENE.defaultRenderGlobals.startFrame.get(),
+                pc.SCENE.defaultRenderGlobals.endFrame.get(),
+                pc.SCENE.defaultRenderGlobals.byFrameStep.get())
+    else:
+        frange = (pc.currentTime(q=1), pc.currentTime(q=1), 1)
+    return frange
+
+def getBitString():
+    if pc.about(is64=True):
+        return '64bit'
+    return '32bit'
+
+def setCurrentRenderLayer(layer):
+    pc.editRenderLayerGlobals(crl=layer)
 
 if __name__ == "__main__":
     for _ in xrange(1):
