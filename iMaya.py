@@ -816,7 +816,7 @@ def findUIObjectByLabel(parentUI, objType, label, case=True):
         return None
 
 def getProjectPath():
-    return pc.Workspace(q=True, o=True)
+    return pc.workspace(q=True, o=True)
 
 def setProjectPath(path):
     if op.exists(path):
@@ -840,7 +840,8 @@ def currentRenderer():
 def getRenderLayers(nonReferencedOnly=True, renderableOnly=True):
     return [layer for layer in pc.ls(exactType='renderLayer')
             if ((not nonReferencedOnly or not layer.isReferenced()) and 
-                    (not renderableOnly or layer.renderable.get()))]
+                    (not renderableOnly or layer.renderable.get())) and 
+            not re.match(r'.*defaultRenderLayer\d+', str(layer))]
 
 def getResolution():
     res = ( 320, 240 )
@@ -930,13 +931,10 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
             sceneName = pc.untitledFileName()
         tokens['<scene>']=sceneName
 
-        print tokens
-
         renderpasses = set()
         for aov in filter(lambda x:x.enabled.get(), pc.ls(type='RedshiftAOV')):
 
             newpath = aov.filePrefix.get()
-            print newpath
 
             renderpass = aov.aovType.get().replace(' ', '')
             count = 1
@@ -954,7 +952,6 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
                 newpath = re.compile(key, re.I).sub(value, newpath)
 
             newpath = newpath+'.'+number+ext
-            print newpath
             paths.append(newpath)
 
 
@@ -1026,6 +1023,29 @@ def getOutputFilePaths(renderLayer=None, useCurrentLayer=False,
 
     return outputFilePaths
 
+def getImagesLocation(workspace=None):
+    if workspace:
+        return pc.workspace(workspace, en=pc.workspace(workspace,
+            fre='images'))
+    else:
+        return pc.workspace(en=pc.workspace(fre='images'))
+
+def getFrameRange():
+    if isAnimationOn():
+        frange = (pc.SCENE.defaultRenderGlobals.startFrame.get(),
+                pc.SCENE.defaultRenderGlobals.endFrame.get(),
+                pc.SCENE.defaultRenderGlobals.byFrameStep.get())
+    else:
+        frange = (pc.currentTime(q=1), pc.currentTime(q=1), 1)
+    return frange
+
+def getBitString():
+    if pc.about(is64=True):
+        return '64bit'
+    return '32bit'
+
+def setCurrentRenderLayer(layer):
+    pc.editRenderLayerGlobals(crl=layer)
 
 if __name__ == "__main__":
     for _ in xrange(1):
