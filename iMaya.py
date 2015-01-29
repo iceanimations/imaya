@@ -839,9 +839,10 @@ def currentRenderer():
 
 def getRenderLayers(nonReferencedOnly=True, renderableOnly=True):
     return [layer for layer in pc.ls(exactType='renderLayer')
-            if ((not nonReferencedOnly or not layer.isReferenced()) and 
-                    (not renderableOnly or layer.renderable.get())) and 
-            not re.match(r'.*defaultRenderLayer\d+', str(layer))]
+            if ((not nonReferencedOnly or not layer.isReferenced()) and
+                    (not renderableOnly or layer.renderable.get())) and
+            not (re.match(r'.+defaultRenderLayer\d*', str(layer)) or
+            re.match(r'.*defaultRenderLayer\d+', str(layer)))]
 
 def getResolution():
     res = ( 320, 240 )
