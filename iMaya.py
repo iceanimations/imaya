@@ -909,6 +909,7 @@ def removeLastNumber(path, bychar='?'):
 def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     paths = []
     renderer = currentRenderer()
+    print cam
 
 
     if renderer == 'redshift':
@@ -923,9 +924,14 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
         if basename.endswith('.'):
             basename = basename[:-1]
         tokens['<beautyfile>']=basename
+        if cam:
+            camera = re.sub(r'\.|:', '_', str(cam.firstParent()))
+        else:
+            camera = ''
 
-        tokens['<camera>']=re.sub(r'\.|:', '_', str(cam))
+        tokens['<camera>']=camera
         tokens['<layer>']=re.sub(r'\.|:', '_', str(layer))
+        tokens['<renderlayer>'] = tokens['<layer>']
 
         sceneName, ext=op.splitext(op.basename(pc.sceneName()))
         if not sceneName:
@@ -947,7 +953,6 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
             renderpasses.add(renderpass)
 
             tokens['<renderpass>'] = tokens['<aov>'] = renderpass
-            tokens['<renderlayer>'] = renderpass
 
             for key, value in tokens.items():
                 newpath = re.compile(key, re.I).sub(value, newpath)
@@ -971,14 +976,30 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     return paths
 
 
-def getGenericImageName(layer='', camera='', resolveAOVs=True, framePadder='?'):
+def getGenericImageName(layer=None, camera=None, resolveAOVs=True, framePadder='?'):
     gins = []
 
-    fin = pc.renderSettings(fin=True, lut=True, layer=layer, camera=camera)
+    if layer is None and camera is None:
+        fin = pc.renderSettings(fin=True, lut=True)
+    elif layer is None:
+        fin = pc.renderSettings(fin=True, lut=True, camera=camera)
+    elif camera is None:
+        fin = pc.renderSettings(fin=True, lut=True, layer=layer)
+    else:
+        fin = pc.renderSettings(fin=True, lut=True, layer=layer, camera=camera)
     path = fin[0]
 
+
     if resolveAOVs:
-        gins = resolveAOVsInPath(path, layer, camera, framePadder)
+        cams = getCameras(True, False)
+        if cams:
+            camera = cams[0]
+        gins = resolveAOVsInPath(
+                path,
+                layer if layer else pc.editRenderLayerGlobals(q=1, crl=1),
+                camera if camera else '',
+                framePadder)
+
     if not gins:
         gins = [path]
     if isAnimationOn():
@@ -994,28 +1015,28 @@ def getOutputFilePaths(renderLayer=None, useCurrentLayer=False,
 
     renderLayers = None
     if renderLayer:
-        renderLayers = [renderLayer]
+        renderLayers = [pc.nt.RenderLayer(renderLayer)]
     elif not useCurrentLayer:
         layers = getRenderLayers()
         if layers:
             renderLayers = layers
     if renderLayers is None:
-        renderLayers = ['']
+        renderLayers = [None]
 
     for layer in renderLayers:
 
         if layer != pc.editRenderLayerGlobals(q=1, crl=1) and switchToLayer:
             pc.editRenderLayerGlobals(crl=layer)
 
+        renderableCams = getCameras(True, ignoreStartupCameras)
         cameras = None
         if camera:
             cameras = [camera]
         elif not useCurrentCamera:
-            cams = getCameras(True, ignoreStartupCameras)
-            if cams:
-                cameras = cams
+            if renderableCams:
+                cameras = renderableCams
         if cameras is None:
-            cameras = ['']
+            cameras = [getCameras(False, False)[0]]
 
         for cam in cameras:
             gins = getGenericImageName(layer=layer, camera=cam,
