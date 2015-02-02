@@ -909,6 +909,7 @@ def removeLastNumber(path, bychar='?'):
 def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     paths = []
     renderer = currentRenderer()
+    print cam
 
 
     if renderer == 'redshift':
@@ -923,8 +924,12 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
         if basename.endswith('.'):
             basename = basename[:-1]
         tokens['<beautyfile>']=basename
+        if cam:
+            camera = re.sub(r'\.|:', '_', str(cam.firstParent()))
+        else:
+            camera = ''
 
-        tokens['<camera>']=re.sub(r'\.|:', '_', str(cam.firstParent()))
+        tokens['<camera>']=camera
         tokens['<layer>']=re.sub(r'\.|:', '_', str(layer))
         tokens['<renderlayer>'] = tokens['<layer>']
 
@@ -1023,15 +1028,15 @@ def getOutputFilePaths(renderLayer=None, useCurrentLayer=False,
         if layer != pc.editRenderLayerGlobals(q=1, crl=1) and switchToLayer:
             pc.editRenderLayerGlobals(crl=layer)
 
+        renderableCams = getCameras(True, ignoreStartupCameras)
         cameras = None
         if camera:
             cameras = [camera]
         elif not useCurrentCamera:
-            cams = getCameras(True, ignoreStartupCameras)
-            if cams:
-                cameras = cams
+            if renderableCams:
+                cameras = renderableCams
         if cameras is None:
-            cameras = [None]
+            cameras = [getCameras(False, False)[0]]
 
         for cam in cameras:
             gins = getGenericImageName(layer=layer, camera=cam,
