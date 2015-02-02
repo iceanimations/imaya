@@ -987,14 +987,12 @@ def getGenericImageName(layer=None, camera=None, resolveAOVs=True, framePadder='
 
     if resolveAOVs:
         cams = imaya.getCameras(True, False)
-        if not cams:
-            camera = ''
-        else:
+        if cams:
             camera = cams[0]
         gins = resolveAOVsInPath(
                 path,
                 layer if layer else pc.editRenderLayerGlobals(q=1, crl=1),
-                camera,
+                camera if camera else '',
                 framePadder)
 
     if not gins:
