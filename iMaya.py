@@ -911,8 +911,6 @@ def removeLastNumber(path, bychar='?'):
 def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     paths = []
     renderer = currentRenderer()
-    print cam
-
 
     if renderer == 'redshift':
         tokens = OrderedDict()
