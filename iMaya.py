@@ -824,10 +824,10 @@ def setProjectPath(path):
         return True
 
 def getCameras(renderableOnly=True, ignoreStartupCameras=True,
-        nonOrthographicOnly=True):
+        allowOrthographic=True):
     return [cam  for cam in pc.ls(type='camera') 
             if ((not renderableOnly or cam.renderable.get()) and
-                (not nonOrthographicOnly or not cam.orthographic.get()) and
+                (allowOrthographic or not cam.orthographic.get()) and
                 (not ignoreStartupCameras or not cam.getStartupCamera()))]
 
 def isAnimationOn():
