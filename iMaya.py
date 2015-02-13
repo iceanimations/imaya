@@ -916,7 +916,6 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
         beauty = renderpass_re.sub('Beauty', path)
         beauty = aov_re.sub('Beauty', beauty )
         paths.append(beauty)
-        print 'beauty:', beauty, path
 
         tokens = OrderedDict()
 
