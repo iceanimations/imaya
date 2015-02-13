@@ -898,6 +898,7 @@ def getRenderPassNames(enabledOnly=True, nonReferencedOnly=True):
 
 frameno_re = re.compile(r'\d+')
 renderpass_re = re.compile('<renderpass>', re.I)
+aov_re = re.compile('<aov>', re.I)
 def removeLastNumber(path, bychar='?'):
     numbers = frameno_re.findall(path)
     if numbers:
@@ -907,12 +908,15 @@ def removeLastNumber(path, bychar='?'):
     return path, ''
 
 
-
 def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     paths = []
     renderer = currentRenderer()
 
     if renderer == 'redshift':
+        beauty = renderpass_re.sub('Beauty', path)
+        beauty = aov_re.sub('Beauty', beauty )
+        paths.append(beauty)
+
         tokens = OrderedDict()
 
         tokens['<beautypath>']=op.dirname(path)
@@ -971,7 +975,7 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
             paths.append(renderpass_re.sub(pas, path))
 
     else:
-        paths.append( renderpass_re.sub(path, '') )
+        paths.append( aov_re.sub('', renderpass_re.sub('', path )))
 
     return paths
 
