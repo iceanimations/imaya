@@ -922,6 +922,7 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
         tokens['<beautypath>']=op.dirname(path)
 
         basename = op.basename(path)
+        number = ''
         if isAnimationOn():
             basename, number = removeLastNumber(basename, '')
         basename = op.splitext(basename)[0]
@@ -961,7 +962,7 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
             for key, value in tokens.items():
                 newpath = re.compile(key, re.I).sub(value, newpath)
 
-            newpath = newpath+'.'+number+ext
+            newpath = newpath+('.' if number else '')+number+ext
             paths.append(newpath)
 
 
