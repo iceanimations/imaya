@@ -365,7 +365,10 @@ def getFullpathFromAttr(attr):
     ''' get full path from attr 
     :type attr: pymel.core.general.Attribute
     '''
-    val = pc.getAttr(unicode( attr ))
+    node = pc.PyNode(attr).node()
+    val = node.cfnp.get()
+    if '<f>.' not in val: val = node.ftn.get()
+    #val = pc.getAttr(unicode( attr ))
     val = pc.workspace(en=val)
     val = op.abspath(val)
     return op.normpath(val)
