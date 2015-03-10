@@ -368,11 +368,7 @@ def getFullpathFromAttr(attr):
     node = pc.PyNode(attr).node()
     val = node.cfnp.get()
     if '<f>.' not in val: val = node.ftn.get()
-    if val:
-        val = pc.workspace(en=val)
-        val = op.abspath(val)
-        return op.normpath(val)
-    else: return ''
+    return val
 
 def remapFileNode(fn, mapping):
     ''' Update file node with given mapping
