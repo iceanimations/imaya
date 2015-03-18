@@ -878,20 +878,27 @@ def getRenderPassNames(enabledOnly=True, nonReferencedOnly=True):
                 if ((not enabledOnly or aov.enabled.get()) and 
                     (not nonReferencedOnly or not aov.isReferenced()))]
     elif renderer == 'redshift':
-        aovs = [aov.attr('aovType').get() for aov in pc.ls(type='RedshiftAOV')
-                if ((not enabledOnly or aov.enabled.get()) and 
-                    (not nonReferencedOnly or not aov.isReferenced()))]
+        if not pc.attributeQuery('name', type='RedshiftAOV', exists=True):
 
-        finalaovs = set()
-        for aov in aovs:
-            aov = aov.replace(" ", "")
-            newaov = aov
-            count = 1
-            while newaov in finalaovs:
-                newaov = aov + str(count)
-                count += 1
-            finalaovs.add(newaov)
-        return list(finalaovs)
+            aovs = [aov.attr('aovType').get() for aov in pc.ls(type='RedshiftAOV')
+                    if ((not enabledOnly or aov.enabled.get()) and 
+                        (not nonReferencedOnly or not aov.isReferenced()))]
+
+            finalaovs = set()
+            for aov in aovs:
+                aov = aov.replace(" ", "")
+                newaov = aov
+                count = 1
+                while newaov in finalaovs:
+                    newaov = aov + str(count)
+                    count += 1
+                finalaovs.add(newaov)
+            return list(finalaovs)
+        else:
+            return [aov.attr('name').get() for aov in pc.ls(type='RedshiftAOV')
+                    if ((not enabledOnly or aov.enabled.get()) and 
+                        (not nonReferencedOnly or not aov.isReferenced()))]
+
 
     else:
         return []
@@ -948,14 +955,17 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
 
             newpath = aov.filePrefix.get()
 
-            renderpass = aov.aovType.get().replace(' ', '')
-            count = 1
-            rp = renderpass
-            while rp in renderpasses:
-                rp = renderpass + str(count)
-                count +=1
-            renderpass = rp
-            renderpasses.add(renderpass)
+            if pc.attributeQuery('name', n=aov, exists=True):
+                renderpass = aov.attr('name').get()
+            else:
+                renderpass = aov.aovType.get().replace(' ', '')
+                count = 1
+                rp = renderpass
+                while rp in renderpasses:
+                    rp = renderpass + str(count)
+                    count +=1
+                renderpass = rp
+                renderpasses.add(renderpass)
 
             tokens['<renderpass>'] = tokens['<aov>'] = renderpass
 
@@ -984,21 +994,26 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
 def getGenericImageName(layer=None, camera=None, resolveAOVs=True, framePadder='?'):
     gins = []
 
-    if layer is None and camera is None:
-        fin = pc.renderSettings(fin=True, lut=True)
-    elif layer is None:
-        fin = pc.renderSettings(fin=True, lut=True, camera=camera)
-    elif camera is None:
-        fin = pc.renderSettings(fin=True, lut=True, layer=layer)
+    if currentRenderer() == 'redshift':
+        path = pc.PyNode('redshiftOptions').imageFilePrefix.get()
     else:
-        fin = pc.renderSettings(fin=True, lut=True, layer=layer, camera=camera)
-    path = fin[0]
+        if layer is None and camera is None:
+            fin = pc.renderSettings(fin=True, lut=True)
+        elif layer is None:
+            fin = pc.renderSettings(fin=True, lut=True, camera=camera)
+        elif camera is None:
+            fin = pc.renderSettings(fin=True, lut=True, layer=layer)
+        else:
+            fin = pc.renderSettings(fin=True, lut=True, layer=layer, camera=camera)
+        path = fin[0]
 
 
     if resolveAOVs:
-        cams = getCameras(True, False)
-        if cams:
-            camera = cams[0]
+        if not camera:
+            cams = getCameras(True, False)
+            print cams
+            if cams:
+                camera = cams[0]
         gins = resolveAOVsInPath(
                 path,
                 layer if layer else pc.editRenderLayerGlobals(q=1, crl=1),
