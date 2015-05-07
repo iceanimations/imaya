@@ -920,6 +920,7 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     renderer = currentRenderer()
 
     if renderer == 'redshift':
+        print path, type(path)
         beauty = renderpass_re.sub('Beauty', path)
         beauty = aov_re.sub('Beauty', beauty )
         paths.append(beauty)
@@ -994,9 +995,12 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
 def getGenericImageName(layer=None, camera=None, resolveAOVs=True, framePadder='?'):
     gins = []
 
+    path = None
+
     if currentRenderer() == 'redshift':
         path = pc.PyNode('redshiftOptions').imageFilePrefix.get()
-    else:
+
+    if path is None:
         if layer is None and camera is None:
             fin = pc.renderSettings(fin=True, lut=True)
         elif layer is None:
@@ -1011,7 +1015,6 @@ def getGenericImageName(layer=None, camera=None, resolveAOVs=True, framePadder='
     if resolveAOVs:
         if not camera:
             cams = getCameras(True, False)
-            print cams
             if cams:
                 camera = cams[0]
         gins = resolveAOVsInPath(
