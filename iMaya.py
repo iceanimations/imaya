@@ -971,7 +971,8 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
             tokens['<renderpass>'] = tokens['<aov>'] = renderpass
 
             for key, value in tokens.items():
-                newpath = re.compile(key, re.I).sub(value, newpath)
+                if key and value:
+                    newpath = re.compile(key, re.I).sub(value, newpath)
 
             newpath = newpath+('.' if number else '')+number+ext
             paths.append(newpath)
