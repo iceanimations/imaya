@@ -329,7 +329,7 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
 
     # definitely no udim
     if uvTilingMode == 'None':
-        if key(filepath) and op.exists(filepath):
+        if key(filepath) and op.exists(filepath) and op.isfile(filepath):
             texs[filepath].add(filepath)
         if pc.getAttr(fn + '.useFrameExtension'):
             seqTex = util.getSequenceFiles(filepath)
@@ -338,12 +338,12 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
 
     # explicit naming
     elif uvTilingMode == 'explicit':
-        if key(filepath) and op.exists(filepath):
+        if key(filepath) and op.exists(filepath) and op.isfile(filepath):
             texs[filepath].add(filepath)
         indices = pc.getAttr(fn + '.euvt', mi=True)
         for index in indices:
             filepath = getFullpathFromAttr(fn + '.euvt[%d].eutn'%index)
-            if key(filepath) and op.exists(filepath):
+            if key(filepath) and op.exists(filepath) and op.isfile(filepath):
                 texs[filepath].add(filepath)
 
     else: # 'mari', 'zbrush', 'mudbox'
