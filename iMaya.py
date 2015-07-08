@@ -14,6 +14,7 @@ import re
 import shutil
 from collections import OrderedDict
 
+
 class ArbitraryConf(object):
     # iMaya depends on the following external attributes
     # provided here incase it is not overridden by the user
@@ -64,6 +65,33 @@ class FileInfo(object):
     def remove(cls, key):
         if cls.get(key):
             return pc.fileInfo.pop(key)
+        
+def meshesCompatible(mesh1, mesh2):
+    try:
+        if len(mesh1.f) == len(mesh2.f):
+            if len(mesh1.vtx) == len(mesh2.vtx):
+                if len(mesh1.e) == len(mesh2.e):
+                    return True
+    except AttributeError:
+        raise TypeError, 'Objects must be instances of pymel.core.nodetypes.Mesh'
+    return False
+        
+def setsCompatible(obj1, obj2):
+    '''
+    returns True if two ObjectSets are compatible for cache
+    '''
+    if type(obj1) != pc.nt.ObjectSet and type(obj2) != pc.nt.ObjectSet:
+        raise TypeError, 'Values must be instances of pymel.core.nodetypes.ObjectSet'
+    flag = True
+    # check if the number of members is equal in both sets
+    if len(obj1) == len(obj2):
+        # check if the order and meshes are compatible in each set
+        for i in range(len(obj1)):
+            if not meshesCompatible(obj1.dagSetMembers[i].inputs()[0],
+                                    obj2.dagSetMembers[i].inputs()[0]):
+                flag = False
+                break
+    return flag
 
 def referenceExists(path):
     # get the existing references
