@@ -3,7 +3,10 @@
 import os, tempfile
 import pymel.core as pc
 import maya.cmds as cmds
-import iutil as util
+try:
+    import iutil as util
+except:
+    import iutilities as util
 reload(util)
 import traceback
 op = os.path
