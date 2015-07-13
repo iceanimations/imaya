@@ -66,6 +66,22 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
         
+def applyCache(node, xmlFilePath):
+    '''
+    applies cache to the given mesh or set
+    @param node: ObjectSet or Mesh 
+    '''
+    xmlFilePath = xmlFilePath.replace('\\', '/')
+    if isinstance(node, pc.nt.Transform):
+        try:
+            node = node.getShape(ni=True)
+        except:
+            raise TypeError, 'Node must be an instance of pc.nt.Mesh'
+            return
+    elif isinstance(node, pc.nt.Mesh):
+        pass
+    pc.mel.doImportCacheFile(xmlFilePath, "", [node], list())
+
 def meshesCompatible(mesh1, mesh2):
     try:
         if len(mesh1.f) == len(mesh2.f):
@@ -802,6 +818,10 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
         #              "All meshes in the list have been exported", "OK")
 
     return caches
+
+def saveSceneAs(path):
+    cmds.file(rename=path)
+    cmds.file(save=True)
 
 def save_scene(ext):
     type = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
