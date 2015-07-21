@@ -565,14 +565,14 @@ def render(*arg, **kwarg):
         pc.select(selection, ne = True)
     return result
 
-def snapshot():
+def snapshot(resolution=conf.presetGeo["resolution"]):
     snapLocation = op.join(os.getenv("tmp"), str(int(util.randomNumber()*100000)))
     command = """float $currFrame = `currentTime -q`;
 int $format = `getAttr "defaultRenderGlobals.imageFormat"`;
 setAttr "defaultRenderGlobals.imageFormat" 8;
 playblast -frame $currFrame -format "image" -cf "{image}" -orn 0 -v 0 -wh {res} -p 100;
 setAttr "defaultRenderGlobals.imageFormat" $format;""".format(res =
-                                                              " ".join(map(str, conf.presetGeo["resolution"])),
+                                                              " ".join(map(str, resolution)),
                                                               image =
                                                               snapLocation.replace("\\",
                                                                                    "/"))
