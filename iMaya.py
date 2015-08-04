@@ -890,6 +890,12 @@ def currentRenderer():
         renderer = '3delight'
     return renderer
 
+def toggleTextureMode(val):
+    for panel in pc.getPanel(type='modelPanel'):
+        me = pc.modelPanel(panel, q=True, me=True)
+        pc.modelEditor(me, e=True, displayAppearance='smoothShaded')
+        pc.modelEditor(me, e=True, dtx=val)
+
 def getRenderLayers(nonReferencedOnly=True, renderableOnly=True):
     return [layer for layer in pc.ls(exactType='renderLayer')
             if ((not nonReferencedOnly or not layer.isReferenced()) and
