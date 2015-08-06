@@ -109,6 +109,30 @@ def setsCompatible(obj1, obj2):
                 break
     return flag
 
+geo_set_compatible = setsCompatible
+
+def geo_set_valid(obj1):
+    '''  '''
+    obj1 = pc.nt.ObjectSet(obj1)
+    if 'geo_set' not in obj1.name().lower():
+        return False
+    for i in range(len(obj1)):
+        try:
+            member = obj1.dagSetMembers[i].inputs()[0]
+            mesh = member.getShape(type='mesh', ni=True)
+        except:
+            return False
+        if not mesh or not mesh.numVertices():
+            return False
+    return True
+
+def get_geo_sets():
+    geosets = []
+    for node in pc.ls(exactType='objectSet'):
+        if 'geo_set' in node.name().lower():
+            geosets.append(node)
+    return geosets
+
 def referenceExists(path):
     # get the existing references
     exists = cmds.file(r = True, q = True)
@@ -223,6 +247,29 @@ def addReference(paths=[], dup = True, stripVersionInNamespace=True, *arg, **kwa
                 namespace = match.group(1) + match.group(3)
         cmds.file(path, r=True,
                 mnc=False, namespace=namespace)
+
+def createReference(path, stripVersionInNamespace=True):
+    if not path or not op.exists(path):
+        return None
+    before = pc.listReferences()
+    namespace = op.basename(path)
+    namespace = op.splitext(namespace)[0]
+    if stripVersionInNamespace:
+        # version part of the string is recognized as .v001
+        match = re.match('(.*)([-._]v\d+)(.*)', namespace)
+        if match:
+            namespace = match.group(1) + match.group(3)
+    pc.createReference(path, namespace=namespace, mnc=False)
+    after = pc.listReferences()
+    new = [ref for ref in after if ref not in before and not
+            ref.refNode.isReferenced()]
+    return new[0]
+
+def find_geo_set_in_ref(ref, key=lambda node: 'geo_set' in node.name().lower()):
+    for node in ref.nodes():
+        if pc.nodeType(node) == 'objectSet':
+            if key(node):
+                return node
 
 @newScene
 @newcomerObjs
