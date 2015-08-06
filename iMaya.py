@@ -109,7 +109,7 @@ def setsCompatible(obj1, obj2):
                 break
     return flag
 
-geo_set_compatible = setsCompatible
+geo_sets_compatible = setsCompatible
 
 def geo_set_valid(obj1):
     '''  '''
