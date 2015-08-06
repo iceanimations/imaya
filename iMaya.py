@@ -265,6 +265,12 @@ def createReference(path, stripVersionInNamespace=True):
             ref.refNode.isReferenced()]
     return new[0]
 
+def removeReference(ref):
+    ''':type ref: pymel.core.system.FileReference()'''
+    if ref:
+        ref.removeReferenceEdits()
+        ref.remove()
+
 def find_geo_set_in_ref(ref, key=lambda node: 'geo_set' in node.name().lower()):
     for node in ref.nodes():
         if pc.nodeType(node) == 'objectSet':
