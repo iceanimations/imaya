@@ -819,6 +819,20 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
 
     return caches
 
+def openFile(filename):
+    if op.exists(filename):
+        if op.isfile(filename):
+            ext = op.splitext(filename)[-1]
+            if ext in ['.ma', '.mb']:
+                typ = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
+                pc.mel.eval("file -f -options \"v=0;\" -ignoreVersion -loadReferenceDepth \"all\"  -typ \"%s\" -o \"%s\";"%(typ, filename.replace('\\', '/')))
+            else:
+                pc.warning('Specified path is not a maya file: %s'%filename)
+        else:
+            pc.warning('Specified path is not a file: %s'%filename)
+    else:
+        pc.warning('File path does not exist: %s'%filename)
+
 def saveSceneAs(path):
     cmds.file(rename=path)
     cmds.file(save=True)
