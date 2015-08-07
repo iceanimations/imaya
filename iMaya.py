@@ -126,10 +126,11 @@ def geo_set_valid(obj1):
             return False
     return True
 
-def get_geo_sets():
+def get_geo_sets(nonReferencedOnly=False):
     geosets = []
     for node in pc.ls(exactType='objectSet'):
-        if 'geo_set' in node.name().lower():
+        if 'geo_set' in node.name().lower() and (not nonReferencedOnly or
+                not node.isReferenced()):
             geosets.append(node)
     return geosets
 
