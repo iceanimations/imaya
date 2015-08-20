@@ -13,6 +13,8 @@ op = os.path
 import re
 import shutil
 from collections import OrderedDict
+import qutil
+reload(qutil)
 
 
 class ArbitraryConf(object):
@@ -65,6 +67,15 @@ class FileInfo(object):
     def remove(cls, key):
         if cls.get(key):
             return pc.fileInfo.pop(key)
+        
+def removeNamespace(obj=None):
+    '''removes the namespace of the given or selected PyNode'''
+    if not obj:
+        obj = pc.ls(sl=True)[0]
+    name = obj.name()
+    nameParts = name.split(':')
+    ns = ':'.join(nameParts[0:-1]) + ':'
+    pc.namespace(mergeNamespaceWithRoot=True, removeNamespace=ns)
         
 def applyCache(node, xmlFilePath):
     '''
@@ -643,9 +654,6 @@ def selected():
     else:
         return False
 
-def openFile(path, f = False):
-    pc.openFile(path, force = f)
-
 def getMeshes(selection = False):
     '''
     returns only meshes from the scene or selection
@@ -879,7 +887,7 @@ def openFile(filename):
             ext = op.splitext(filename)[-1]
             if ext in ['.ma', '.mb']:
                 typ = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
-                pc.mel.eval("file -f -options \"v=0;\" -ignoreVersion -loadReferenceDepth \"all\"  -typ \"%s\" -o \"%s\";"%(typ, filename.replace('\\', '/')))
+                pc.mel.eval("file -f -options \"v=0;\" -ignoreVersion -prompt 0 -loadReferenceDepth \"all\"  -typ \"%s\" -o \"%s\";"%(typ, filename.replace('\\', '/')))
             else:
                 pc.warning('Specified path is not a maya file: %s'%filename)
         else:
