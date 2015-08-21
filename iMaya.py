@@ -76,7 +76,7 @@ def removeNamespace(obj=None):
     nameParts = name.split(':')
     ns = ':'.join(nameParts[0:-1]) + ':'
     pc.namespace(mergeNamespaceWithRoot=True, removeNamespace=ns)
-        
+
 def applyCache(node, xmlFilePath):
     '''
     applies cache to the given mesh or set
