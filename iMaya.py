@@ -90,7 +90,7 @@ def applyCache(node, xmlFilePath):
                 tempNode = pc.ls(node, dag=True, type='mesh')
                 if not tempNode:
                     raise TypeError, node.name() + " does not contain a shape node"
-                node = tempNode[0]
+            node = tempNode[0]
         except:
             raise TypeError, 'Node must be an instance of pc.nt.Mesh'
             return
