@@ -85,7 +85,12 @@ def applyCache(node, xmlFilePath):
     xmlFilePath = xmlFilePath.replace('\\', '/')
     if isinstance(node, pc.nt.Transform):
         try:
-            node = node.getShape(ni=True)
+            tempNode = node.getShape(ni=True)
+            if not tempNode:
+                tempNode = pc.ls(node, dag=True, type='mesh')
+                if not tempNode:
+                    raise TypeError, node.name() + " does not contain a shape node"
+                node = tempNode[0]
         except:
             raise TypeError, 'Node must be an instance of pc.nt.Mesh'
             return
