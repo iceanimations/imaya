@@ -68,6 +68,17 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
         
+def createShadingNode(typ):
+    return pc.PyNode(pc.mel.eval('createRenderNodeCB -asShader "surfaceShader" %s "";'%typ))
+        
+def switchToMasterLayer():
+    if pc.editRenderLayerGlobals(q=True, currentRenderLayer=True).lower().startswith('default'):
+        return
+    for layer in getRenderLayers(renderableOnly=False):
+        if layer.name().lower().startswith('default'):
+            pc.editRenderLayerGlobals(currentRenderLayer=layer)
+            break
+        
 def removeNamespace(obj=None):
     '''removes the namespace of the given or selected PyNode'''
     if not obj:
@@ -99,6 +110,19 @@ def applyCache(node, xmlFilePath):
     elif isinstance(node, pc.nt.Mesh):
         pass
     pc.mel.doImportCacheFile(xmlFilePath, "", [node], list())
+    
+def deleteCache(mesh=None):
+    if not mesh:
+        try:
+            mesh = pc.ls(sl=True)[0]
+        except IndexError:
+            return
+    try:
+        if mesh.history(type='cacheFile'):
+            pc.select(mesh)
+            pc.mel.eval('deleteCacheFile 3 { "keep", "", "geometry" } ;')
+    except Exception as ex:
+        pc.warning(str(ex))
 
 def meshesCompatible(mesh1, mesh2):
     try:
