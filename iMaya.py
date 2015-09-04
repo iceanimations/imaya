@@ -619,6 +619,21 @@ def map_textures(mapping):
 
     return reverse
 
+def texture_mapping(newdir, olddir=None, scene_textures=None):
+    if not scene_textures:
+        scene_textures = textureFiles(returnAsDict=True)
+
+    mapping = {}
+
+    for ftn, texs in scene_textures.items():
+        alltexs = [ftn] + texs
+        for tex in alltexs:
+            tex_dir, tex_base = os.path.split()
+            if oldpath is None or util.paths_equal(tex_dir, oldpath):
+                mapping[tex] = os.path.join(newdir, tex_base)
+
+    return mapping
+
 def collect_textures(dest, scene_textures=None):
     '''
     Collect all scene texturefiles to a flat hierarchy in a single directory while resolving
