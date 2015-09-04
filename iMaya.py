@@ -629,7 +629,7 @@ def texture_mapping(newdir, olddir=None, scene_textures=None):
         alltexs = [ftn] + texs
         for tex in alltexs:
             tex_dir, tex_base = os.path.split()
-            if oldpath is None or util.paths_equal(tex_dir, oldpath):
+            if olddir is None or util.paths_equal(tex_dir, olddir):
                 mapping[tex] = os.path.join(newdir, tex_base)
 
     return mapping
