@@ -68,6 +68,27 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
         
+def undoChunk(func):
+    ''' This is a decorator for all functions that cause a change in a maya
+    scene. It wraps all changes of the decorated function in a single undo
+    chunk
+    '''
+    def _wrapper(*args, **dargs):
+        res = None
+        try:
+            undoChunk = dargs.pop('chunkOpen')
+        except KeyError:
+            undoChunk = None
+        if undoChunk is True:
+            pc.undoInfo(openChunk=True)
+        try:
+            res = func(*args, **dargs)
+        finally:
+            if undoChunk is False:
+                pc.undoInfo(closeChunk=True)
+            return res
+    return _wrapper
+
 def getCombinedMeshFromSet(_set):
     meshes = [shape for transform in _set.dsm.inputs() for shape in transform.getShapes(ni=True, type='mesh')]
     if not meshes: return
