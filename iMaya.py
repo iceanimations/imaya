@@ -68,6 +68,20 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
         
+def batchRender():
+    '''Renders all active render layers in current Maya scene, according to
+    render settings and saves renders to Project Directory
+    @return: Generator containing layer names'''
+    layers = getRenderLayers()
+    for layer in layers:
+        layer.renderable.set(0)
+    for layer in layers:
+        layer.renderable.set(1)
+        yield layer.name()
+        pc.mel.mayaBatchRenderProcedure(1, "", "", "", "")
+        layer.renderable.set(0)
+    
+        
 def undoChunk(func):
     ''' This is a decorator for all functions that cause a change in a maya
     scene. It wraps all changes of the decorated function in a single undo
