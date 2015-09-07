@@ -68,6 +68,15 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
         
+def addMeshesToGroup(meshes, group):
+    group = pc.ls(group)
+    if group:
+        if len(group) == 1:
+            pc.parent(meshes, group)
+    else:
+        pc.select(meshes)
+        pc.group(name=group)
+        
 def batchRender():
     '''Renders all active render layers in current Maya scene, according to
     render settings and saves renders to Project Directory
@@ -219,6 +228,13 @@ def get_geo_sets(nonReferencedOnly=False):
                 not node.isReferenced()):
             geosets.append(node)
     return geosets
+
+def getGeoSets():
+    '''return only valid geo sets'''
+    try:
+        return [s for s in pc.ls(exactType=pc.nt.ObjectSet) if s.name().lower().endswith('_geo_set') and s.members()[0].getShapes(ni=True)]
+    except IndexError:
+        pass
 
 def referenceExists(path):
     # get the existing references
