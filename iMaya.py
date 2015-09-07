@@ -68,14 +68,14 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
         
-def addMeshesToGroup(meshes, group):
-    group = pc.ls(group)
-    if group:
-        if len(group) == 1:
-            pc.parent(meshes, group)
+def addMeshesToGroup(meshes, grp):
+    group2 = pc.ls(grp)
+    if group2:
+        if len(group2) == 1:
+            pc.parent(meshes, group2)
     else:
         pc.select(meshes)
-        pc.group(name=group)
+        pc.group(name=grp)
         
 def batchRender():
     '''Renders all active render layers in current Maya scene, according to
