@@ -978,7 +978,10 @@ def openFile(filename):
             ext = op.splitext(filename)[-1]
             if ext in ['.ma', '.mb']:
                 typ = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
-                pc.mel.eval("file -f -options \"v=0;\" -ignoreVersion -prompt 0 -loadReferenceDepth \"all\"  -typ \"%s\" -o \"%s\";"%(typ, filename.replace('\\', '/')))
+                try:
+                    cmds.file(filename.replace('\\', '/'), f=True, options="v=0;", ignoreVersion=True, prompt=0, loadReferenceDepth="all", type=typ, o=True)
+                except RuntimeError:
+                    pass
             else:
                 pc.warning('Specified path is not a maya file: %s'%filename)
         else:
