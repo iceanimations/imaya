@@ -223,18 +223,20 @@ def geo_set_valid(obj1):
             return False
     return True
 
-def get_geo_sets(nonReferencedOnly=False):
+def get_geo_sets(nonReferencedOnly=False, validOnly=False):
     geosets = []
     for node in pc.ls(exactType='objectSet'):
         if 'geo_set' in node.name().lower() and (not nonReferencedOnly or
-                not node.isReferenced()):
+                not node.isReferenced()) and (not validOnly or
+                        geo_set_valid(node) ):
             geosets.append(node)
     return geosets
 
 def getGeoSets():
     '''return only valid geo sets'''
     try:
-        return [s for s in pc.ls(exactType=pc.nt.ObjectSet) if s.name().lower().endswith('_geo_set') and s.members()[0].getShapes(ni=True)]
+        return [s for s in pc.ls(exactType=pc.nt.ObjectSet) if
+                s.name().lower().endswith('_geo_set') and geo_set_valid(s)]
     except IndexError:
         pass
 
