@@ -202,6 +202,8 @@ def setsCompatible(obj1, obj2):
                                     obj2.dagSetMembers[i].inputs()[0]):
                 flag = False
                 break
+    else:
+        flag = False
     return flag
 
 geo_sets_compatible = setsCompatible
