@@ -610,6 +610,9 @@ def remapFileNode(fn, mapping):
             pc.setAttr(fn + '.ftn', mapping[path])
             reverse.append( (mapping[path], path) )
 
+    path = getFullpathFromAttr(fn +  '.ftn')
+    print 'attempt remapping %s to %s' %( path, mapping.get(path, '') )
+
     return reverse
 
 def map_textures(mapping):
@@ -630,7 +633,7 @@ def texture_mapping(newdir, olddir=None, scene_textures=None):
     for ftn, texs in scene_textures.items():
         alltexs = [ftn] + texs
         for tex in alltexs:
-            tex_dir, tex_base = os.path.split()
+            tex_dir, tex_base = os.path.split(tex)
             if olddir is None or util.paths_equal(tex_dir, olddir):
                 mapping[tex] = os.path.join(newdir, tex_base)
 
