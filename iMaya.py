@@ -526,7 +526,7 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
 
     texs = SetDict()
 
-    filepath = getFullpathFromAttr(fn + '.ftn')
+    filepath = readPathAttr(fn + '.ftn')
     uvTilingMode = uvTilingModes[0]
 
     # New in Maya 2015
@@ -537,7 +537,7 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
     if uvTilingMode == 'None':
         uvTilingMode = str(util.detectUdim(filepath))
     elif not uvTilingMode == 'explicit':
-        filepath = getFullpathFromAttr(fn + '.cfnp')
+        filepath = readPathAttr(fn + '.cfnp')
 
     # definitely no udim
     if uvTilingMode == 'None':
@@ -554,7 +554,7 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
             texs[filepath].add(filepath)
         indices = pc.getAttr(fn + '.euvt', mi=True)
         for index in indices:
-            filepath = getFullpathFromAttr(fn + '.euvt[%d].eutn'%index)
+            filepath = readPathAttr(fn + '.euvt[%d].eutn'%index)
             if key(filepath) and op.exists(filepath) and op.isfile(filepath):
                 texs[filepath].add(filepath)
 
@@ -582,6 +582,14 @@ def getFullpathFromAttr(attr):
     if '<f>.' not in val: val = node.ftn.get()
     return val
 
+def readPathAttr(attr):
+    '''the original function to be called from some functions this module
+    returns fullpath according to the current workspace'''
+    val = pc.getAttr(unicode( attr ))
+    val = pc.workspace.expandName(val)
+    val = op.abspath(val)
+    return op.normpath(val)
+
 def remapFileNode(fn, mapping):
     ''' Update file node with given mapping
     '''
@@ -595,7 +603,7 @@ def remapFileNode(fn, mapping):
         uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
 
     if uvTilingMode == 'None' or uvTilingMode == 'explicit':
-        path = getFullpathFromAttr(fn + '.ftn')
+        path = readPathAttr(fn + '.ftn')
         if mapping.has_key(path):
             pc.setAttr(fn + '.ftn', mapping[path])
             reverse.append((mapping[path], path))
@@ -604,19 +612,16 @@ def remapFileNode(fn, mapping):
         reverse = []
         indices = pc.getAttr(fn + '.euvt', mi=True)
         for index in indices:
-            path = getFullpathFromAttr(fn + '.euvt[%d].eutn'%index)
+            path = readPathAttr(fn + '.euvt[%d].eutn'%index)
             if mapping.has_key(path):
                 pc.setAttr(fn + '.euvt[%d].eutn'%index, mapping[path])
                 reverse.append((mapping[path], path))
 
     elif uvTilingMode in uvTilingModes[1:4]:
-        path = getFullpathFromAttr(fn + '.cfnp')
+        path = readPathAttr(fn + '.cfnp')
         if mapping.has_key(path):
             pc.setAttr(fn + '.ftn', mapping[path])
             reverse.append( (mapping[path], path) )
-
-    path = getFullpathFromAttr(fn +  '.ftn')
-    print 'attempt remapping %s to %s' %( path, mapping.get(path, '') )
 
     return reverse
 
