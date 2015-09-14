@@ -198,12 +198,17 @@ def setsCompatible(obj1, obj2):
     if len(obj1) == len(obj2):
         # check if the order and meshes are compatible in each set
         for i in range(len(obj1)):
-            if not meshesCompatible(obj1.dagSetMembers[i].inputs()[0],
-                                    obj2.dagSetMembers[i].inputs()[0]):
+            try:
+                if not meshesCompatible(obj1.dagSetMembers[i].inputs()[0],
+                                        obj2.dagSetMembers[i].inputs()[0]):
+                    flag = False
+                    break
+            except IndexError:
                 flag = False
                 break
     else:
         flag = False
+
     return flag
 
 geo_sets_compatible = setsCompatible
