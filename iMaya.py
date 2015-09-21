@@ -116,7 +116,11 @@ def getCombinedMeshFromSet(_set):
     meshes = [shape for transform in _set.dsm.inputs() for shape in transform.getShapes(ni=True, type='mesh')]
     if not meshes: return
     pc.select(meshes)
-    mesh = pc.polyUnite(ch=1, mergeUVSets=1, name=_set.name().replace('_geo_', '_shaded_').replace('_set', '_combined'))[0]
+    if len(meshes) == 1:
+        mesh = pc.duplicate(ic=True, name=_set.name().replace('_geo_', '_shaded_').replace('_set', '_combined'))[0]
+        pc.parent(mesh, w=True)
+    else:
+        mesh = pc.polyUnite(ch=1, mergeUVSets=1, name=_set.name().replace('_geo_', '_shaded_').replace('_set', '_combined'))[0]
     try: pc.delete(_set)
     except: pass
     return mesh
