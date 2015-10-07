@@ -380,6 +380,26 @@ def createReference(path, stripVersionInNamespace=True):
             ref.refNode.isReferenced()]
     return new[0]
 
+def removeAllReferences():
+    refNodes = pc.ls(type=pc.nt.Reference)
+    refs = []
+    for node in refNodes:
+        if not node.referenceFile():
+            continue
+        try: refs.append(pc.FileReference(node))
+        except: pass
+
+    while refs:
+        try:
+            ref = refs.pop()
+            if ref.parent() is None:
+                removeReference(ref)
+            else:
+                refs.insert(0, ref)
+        except Exception as e:
+            print 'Error removing reference: ', str(e)
+
+
 def removeReference(ref):
     ''':type ref: pymel.core.system.FileReference()'''
     if ref:
@@ -1085,6 +1105,13 @@ def getCameras(renderableOnly=True, ignoreStartupCameras=True,
             if ((not renderableOnly or cam.renderable.get()) and
                 (allowOrthographic or not cam.orthographic.get()) and
                 (not ignoreStartupCameras or not cam.getStartupCamera()))]
+
+def removeAllLights():
+    for light in pc.ls(type='light'):
+        try:
+            pc.delete(light)
+        except:
+            pass
 
 def isAnimationOn():
     return pc.SCENE.defaultRenderGlobals.animation.get()
