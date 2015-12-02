@@ -3,18 +3,14 @@
 import os, tempfile
 import pymel.core as pc
 import maya.cmds as cmds
-try:
-    import iutil as util
-except:
-    import iutilities as util
-reload(util)
+import iutil as util
 import traceback
 op = os.path
 import re
 import shutil
 from collections import OrderedDict
-import qutil
-reload(qutil)
+
+FPS_MAPPINGS = {'film (24 fps)': 'film', 'pal (25 fps)': 'pal'}
 
 
 class ArbitraryConf(object):
@@ -67,6 +63,147 @@ class FileInfo(object):
     def remove(cls, key):
         if cls.get(key):
             return pc.fileInfo.pop(key)
+        
+def getReferences(loaded=False, unloaded=False):
+    refs = []
+    for ref in pc.ls(type=pc.nt.Reference):
+        if ref.referenceFile():
+            refs.append(ref.referenceFile())
+    if loaded:
+        return [ref for ref in refs if ref.isLoaded()]
+    if unloaded:
+        return [ref for ref in refs if not ref.isLoaded()]
+    return refs
+
+def getRefFromSet(geoset):
+    for ref in getReferences(loaded=True):
+        if geoset in ref.nodes():
+            return ref
+
+def addRef(path):
+    namespace = os.path.basename(path)
+    namespace = os.path.splitext(namespace)[0]
+    match = re.match('(.*)([-._]v\d+)(.*)', namespace)
+    if match:
+        namespace = match.group(1) + match.group(3)
+    return pc.createReference(path, namespace=namespace, mnc=False)
+
+def getCombinedMesh(ref):
+    '''returns the top level meshes from a reference node'''
+    meshes = []
+    if ref:
+        for node in pc.FileReference(ref).nodes():
+            if type(node) == pc.nt.Mesh:
+                try:
+                    node.firstParent().firstParent()
+                except pc.MayaNodeError:
+                    if not node.isIntermediate():
+                        meshes.append(node.firstParent())
+                except Exception as ex:
+                    #self.errorsList.append('Could not retrieve combined mesh for Reference\n'+ref.path+'\nReason: '+ str(ex))
+                    pass
+    return meshes
+
+def getMeshFromSet(ref):
+    meshes = []
+    if ref:
+        try:
+            _set = [obj for obj in ref.nodes() if 'geo_set' in obj.name()
+                    and type(obj)==pc.nt.ObjectSet ][0]
+            meshes = [shape
+                    for transform in pc.PyNode(_set).dsm.inputs(type="transform")
+                    for shape in transform.getShapes(type = "mesh", ni = True)]
+            #return [pc.polyUnite(ch=1, mergeUVSets=1, *_set.members())[0]] # put the first element in list and return
+            combinedMesh = pc.polyUnite(ch=1, mergeUVSets=1, *meshes)[0]
+            combinedMesh.rename(getNiceName(_set) + '_combinedMesh')
+            return [combinedMesh] # put the first element in list and return
+        except:
+            return meshes
+    return meshes
+
+def applyCache(mapping):
+    '''applies cache on the combined models connected to geo_sets
+    and exports the combined models'''
+    errorsList = []
+    if mapping:
+        count = 1
+        for cache, path in mapping.items():
+            cacheFile = cache+'.xml'
+            if osp.exists(cacheFile):
+                if path:
+                    if osp.exists(path):
+                        ref = addRef(path)
+                        meshes = getCombinedMesh(ref)
+#                         if len(meshes) != 1:
+#                             meshes = getMeshFromSet(ref)
+                        if meshes:
+                            if len(meshes) == 1:
+                                pc.mel.doImportCacheFile(cacheFile.replace('\\', '/'), "", meshes, list())
+                            else:
+                                errorsList.append('Unable to identify Combined mesh or ObjectSet\n'+ path +'\n'+ '\n'.join(meshes))
+                                pc.delete(meshes)
+                                ref.remove()
+                        else:
+                            errorsList.append('Could not find or build combined mesh from\n'+path)
+                            ref.remove()
+                    else:
+                        errorsList.append('LD path does not exist for '+cache+'\n'+ path)
+                else:
+                    errorsList.append('No LD added for '+ cache)
+            else:
+                errorsList.append('cache file does not exist\n'+ cache)
+    else:
+        errorsList.append('No mappings found in the file')
+    return errorsList
+
+def getNiceName(name, full=False):
+    if full:
+        return name.replace(':', '_').replace('|', '_')
+    return name.split(':')[-1].split('|')[-1]
+        
+def getAttrRecursiveGroup(node, attribute):
+    '''returns the specified attribute (translation, rotation, scale) of a node traversing up to the first parent'''
+    attr = (0, 0, 0)
+    for _ in range(200):
+        attr = tuple(operator.add(attr, pc.PyNode(str(node)+ '.'+ attribute).get()))
+        try:
+            node= node.firstParent()
+        except pc.MayaNodeError:
+            break
+    return attr
+        
+def addOptionVar(name, value):
+    if type(value) == type(int):
+        pc.optionVar(iv=(name, value))
+    elif isinstance(value, basestring):
+        pc.optionVar(sv=(name, value))
+        
+def getOptionVar(name):
+    if pc.optionVar(exists=name):
+        return pc.optionVar(q=name)
+
+
+def getFileType():
+    return cmds.file(q=True, type=True)[0]
+
+def getExtension():
+    '''returns the extension of the file name'''
+    return '.ma' if getFileType() == 'mayaAscii' else '.mb'
+
+def setRenderableCamera(camera, append=False):
+    '''truns the .renderable attribute on for the specified camera. Turns
+    it off for all other cameras in the scene if append is set to True'''
+    if not append:
+        for cam in pc.ls(cameras=True):
+            if cam.renderable.get():
+                cam.renderable.set(False)
+    camera.renderable.set(True)
+
+def addCamera(name):
+    camera = pc.camera(n='persp')
+    camera = pc.ls(sl=True)[0]
+    pc.rename(camera, name)
+    return camera
         
 def addMeshesToGroup(meshes, grp):
     group2 = pc.ls(grp)
@@ -131,7 +268,7 @@ def switchToMasterLayer():
         if layer.name().lower().startswith('default'):
             pc.editRenderLayerGlobals(currentRenderLayer=layer)
             break
-        
+
 def removeNamespace(obj=None):
     '''removes the namespace of the given or selected PyNode'''
     if not obj:
