@@ -63,7 +63,7 @@ class FileInfo(object):
     def remove(cls, key):
         if cls.get(key):
             return pc.fileInfo.pop(key)
-        
+
 def getReferences(loaded=False, unloaded=False):
     refs = []
     for ref in pc.ls(type=pc.nt.Reference):
@@ -213,7 +213,7 @@ def addMeshesToGroup(meshes, grp):
     else:
         pc.select(meshes)
         pc.group(name=grp)
-        
+
 def batchRender():
     '''Renders all active render layers in current Maya scene, according to
     render settings and saves renders to Project Directory
@@ -226,8 +226,8 @@ def batchRender():
         yield layer.name()
         pc.mel.mayaBatchRenderProcedure(1, "", "", "", "")
         layer.renderable.set(0)
-    
-        
+
+
 def undoChunk(func):
     ''' This is a decorator for all functions that cause a change in a maya
     scene. It wraps all changes of the decorated function in a single undo
@@ -253,14 +253,18 @@ def getCombinedMeshFromSet(_set):
     meshes = [shape for transform in _set.dsm.inputs() for shape in transform.getShapes(ni=True, type='mesh')]
     if not meshes: return
     pc.select(meshes)
-    mesh = pc.polyUnite(ch=1, mergeUVSets=1, name=_set.name().replace('_geo_', '_shaded_').replace('_set', '_combined'))[0]
+    if len(meshes) == 1:
+        mesh = pc.duplicate(ic=True, name=_set.name().replace('_geo_', '_shaded_').replace('_set', '_combined'))[0]
+        pc.parent(mesh, w=True)
+    else:
+        mesh = pc.polyUnite(ch=1, mergeUVSets=1, name=_set.name().replace('_geo_', '_shaded_').replace('_set', '_combined'))[0]
     try: pc.delete(_set)
     except: pass
     return mesh
-        
+
 def createShadingNode(typ):
     return pc.PyNode(pc.mel.eval('createRenderNodeCB -asShader "surfaceShader" %s "";'%typ))
-        
+
 def switchToMasterLayer():
     if pc.editRenderLayerGlobals(q=True, currentRenderLayer=True).lower().startswith('default'):
         return
@@ -281,7 +285,7 @@ def removeNamespace(obj=None):
 def applyCache(node, xmlFilePath):
     '''
     applies cache to the given mesh or set
-    @param node: ObjectSet or Mesh 
+    @param node: ObjectSet or Mesh
     '''
     xmlFilePath = xmlFilePath.replace('\\', '/')
     if isinstance(node, pc.nt.Transform):
@@ -300,7 +304,7 @@ def applyCache(node, xmlFilePath):
     elif isinstance(node, pc.nt.Mesh):
         pass
     pc.mel.doImportCacheFile(xmlFilePath, "", [node], list())
-    
+
 def deleteCache(mesh=None):
     if not mesh:
         try:
@@ -323,7 +327,7 @@ def meshesCompatible(mesh1, mesh2):
     except AttributeError:
         raise TypeError, 'Objects must be instances of pymel.core.nodetypes.Mesh'
     return False
-        
+
 def setsCompatible(obj1, obj2):
     '''
     returns True if two ObjectSets are compatible for cache
@@ -335,10 +339,16 @@ def setsCompatible(obj1, obj2):
     if len(obj1) == len(obj2):
         # check if the order and meshes are compatible in each set
         for i in range(len(obj1)):
-            if not meshesCompatible(obj1.dagSetMembers[i].inputs()[0],
-                                    obj2.dagSetMembers[i].inputs()[0]):
+            try:
+                if not meshesCompatible(obj1.dagSetMembers[i].inputs()[0],
+                                        obj2.dagSetMembers[i].inputs()[0]):
+                    flag = False
+                    break
+            except IndexError:
                 flag = False
                 break
+    else:
+        flag = False
     return flag
 
 geo_sets_compatible = setsCompatible
@@ -358,18 +368,20 @@ def geo_set_valid(obj1):
             return False
     return True
 
-def get_geo_sets(nonReferencedOnly=False):
+def get_geo_sets(nonReferencedOnly=False, validOnly=False):
     geosets = []
     for node in pc.ls(exactType='objectSet'):
         if 'geo_set' in node.name().lower() and (not nonReferencedOnly or
-                not node.isReferenced()):
+                not node.isReferenced()) and (not validOnly or
+                        geo_set_valid(node) ):
             geosets.append(node)
     return geosets
 
 def getGeoSets():
     '''return only valid geo sets'''
     try:
-        return [s for s in pc.ls(exactType=pc.nt.ObjectSet) if s.name().lower().endswith('_geo_set') and s.members()[0].getShapes(ni=True)]
+        return [s for s in pc.ls(exactType=pc.nt.ObjectSet) if
+                s.name().lower().endswith('_geo_set') and geo_set_valid(s)]
     except IndexError:
         pass
 
@@ -504,6 +516,26 @@ def createReference(path, stripVersionInNamespace=True):
     new = [ref for ref in after if ref not in before and not
             ref.refNode.isReferenced()]
     return new[0]
+
+def removeAllReferences():
+    refNodes = pc.ls(type=pc.nt.Reference)
+    refs = []
+    for node in refNodes:
+        if not node.referenceFile():
+            continue
+        try: refs.append(pc.FileReference(node))
+        except: pass
+
+    while refs:
+        try:
+            ref = refs.pop()
+            if ref.parent() is None:
+                removeReference(ref)
+            else:
+                refs.insert(0, ref)
+        except Exception as e:
+            print 'Error removing reference: ', str(e)
+
 
 def removeReference(ref):
     ''':type ref: pymel.core.system.FileReference()'''
@@ -645,7 +677,7 @@ def textureFiles(selection = True, key = lambda x: True, getTxFiles=True,
 
 def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
         getTexFiles=True):
-    ''' Given a Node of type file, get all the paths and texture files 
+    ''' Given a Node of type file, get all the paths and texture files
     :type fn: pc.nt.File
     '''
     if not isinstance(fn, pc.nt.File):
@@ -654,7 +686,7 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
 
     texs = SetDict()
 
-    filepath = getFullpathFromAttr(fn + '.ftn')
+    filepath = readPathAttr(fn + '.ftn')
     uvTilingMode = uvTilingModes[0]
 
     # New in Maya 2015
@@ -665,7 +697,7 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
     if uvTilingMode == 'None':
         uvTilingMode = str(util.detectUdim(filepath))
     elif not uvTilingMode == 'explicit':
-        filepath = getFullpathFromAttr(fn + '.cfnp')
+        filepath = readPathAttr(fn + '.cfnp')
 
     # definitely no udim
     if uvTilingMode == 'None':
@@ -682,7 +714,7 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
             texs[filepath].add(filepath)
         indices = pc.getAttr(fn + '.euvt', mi=True)
         for index in indices:
-            filepath = getFullpathFromAttr(fn + '.euvt[%d].eutn'%index)
+            filepath = readPathAttr(fn + '.euvt[%d].eutn'%index)
             if key(filepath) and op.exists(filepath) and op.isfile(filepath):
                 texs[filepath].add(filepath)
 
@@ -702,13 +734,21 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
     return texs
 
 def getFullpathFromAttr(attr):
-    ''' get full path from attr 
+    ''' get full path from attr
     :type attr: pymel.core.general.Attribute
     '''
     node = pc.PyNode(attr).node()
     val = node.cfnp.get()
     if '<f>.' not in val: val = node.ftn.get()
     return val
+
+def readPathAttr(attr):
+    '''the original function to be called from some functions this module
+    returns fullpath according to the current workspace'''
+    val = pc.getAttr(unicode( attr ))
+    val = pc.workspace.expandName(val)
+    val = op.abspath(val)
+    return op.normpath(val)
 
 def remapFileNode(fn, mapping):
     ''' Update file node with given mapping
@@ -723,7 +763,7 @@ def remapFileNode(fn, mapping):
         uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
 
     if uvTilingMode == 'None' or uvTilingMode == 'explicit':
-        path = getFullpathFromAttr(fn + '.ftn')
+        path = readPathAttr(fn + '.ftn')
         if mapping.has_key(path):
             pc.setAttr(fn + '.ftn', mapping[path])
             reverse.append((mapping[path], path))
@@ -732,13 +772,13 @@ def remapFileNode(fn, mapping):
         reverse = []
         indices = pc.getAttr(fn + '.euvt', mi=True)
         for index in indices:
-            path = getFullpathFromAttr(fn + '.euvt[%d].eutn'%index)
+            path = readPathAttr(fn + '.euvt[%d].eutn'%index)
             if mapping.has_key(path):
                 pc.setAttr(fn + '.euvt[%d].eutn'%index, mapping[path])
                 reverse.append((mapping[path], path))
 
     elif uvTilingMode in uvTilingModes[1:4]:
-        path = getFullpathFromAttr(fn + '.cfnp')
+        path = readPathAttr(fn + '.cfnp')
         if mapping.has_key(path):
             pc.setAttr(fn + '.ftn', mapping[path])
             reverse.append( (mapping[path], path) )
@@ -753,6 +793,21 @@ def map_textures(mapping):
             reverse[k]=v
 
     return reverse
+
+def texture_mapping(newdir, olddir=None, scene_textures=None):
+    if not scene_textures:
+        scene_textures = textureFiles(selection=False, returnAsDict=True)
+
+    mapping = {}
+
+    for ftn, texs in scene_textures.items():
+        alltexs = [ftn] + list(texs)
+        for tex in alltexs:
+            tex_dir, tex_base = os.path.split(tex)
+            if olddir is None or util.paths_equal(tex_dir, olddir):
+                mapping[tex] = os.path.join(newdir, tex_base)
+
+    return mapping
 
 def collect_textures(dest, scene_textures=None):
     '''
@@ -1183,10 +1238,17 @@ def setProjectPath(path):
 
 def getCameras(renderableOnly=True, ignoreStartupCameras=True,
         allowOrthographic=True):
-    return [cam  for cam in pc.ls(type='camera') 
+    return [cam  for cam in pc.ls(type='camera')
             if ((not renderableOnly or cam.renderable.get()) and
                 (allowOrthographic or not cam.orthographic.get()) and
                 (not ignoreStartupCameras or not cam.getStartupCamera()))]
+
+def removeAllLights():
+    for light in pc.ls(type='light'):
+        try:
+            pc.delete(light)
+        except:
+            pass
 
 def isAnimationOn():
     return pc.SCENE.defaultRenderGlobals.animation.get()
@@ -1238,14 +1300,14 @@ def getImageFilePrefix():
 def getRenderPassNames(enabledOnly=True, nonReferencedOnly=True):
     renderer = currentRenderer()
     if renderer == 'arnold':
-        return [aov.attr('name').get() for aov in pc.ls(type='aiAOV') 
-                if ((not enabledOnly or aov.enabled.get()) and 
+        return [aov.attr('name').get() for aov in pc.ls(type='aiAOV')
+                if ((not enabledOnly or aov.enabled.get()) and
                     (not nonReferencedOnly or not aov.isReferenced()))]
     elif renderer == 'redshift':
         if not pc.attributeQuery('name', type='RedshiftAOV', exists=True):
 
             aovs = [aov.attr('aovType').get() for aov in pc.ls(type='RedshiftAOV')
-                    if ((not enabledOnly or aov.enabled.get()) and 
+                    if ((not enabledOnly or aov.enabled.get()) and
                         (not nonReferencedOnly or not aov.isReferenced()))]
 
             finalaovs = set()
@@ -1260,7 +1322,7 @@ def getRenderPassNames(enabledOnly=True, nonReferencedOnly=True):
             return list(finalaovs)
         else:
             return [aov.attr('name').get() for aov in pc.ls(type='RedshiftAOV')
-                    if ((not enabledOnly or aov.enabled.get()) and 
+                    if ((not enabledOnly or aov.enabled.get()) and
                         (not nonReferencedOnly or not aov.isReferenced()))]
 
 
