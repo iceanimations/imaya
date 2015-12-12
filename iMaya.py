@@ -64,6 +64,14 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
 
+def addFileInfo(key, value):
+    pc.fileInfo(key, value)
+    
+def getFileInfo(key=None, all=False):
+    if all: return pc.fileInfo(q=True)
+    for _key, value in pc.fileInfo(q=True):
+        if _key == key: return value
+
 def getReferences(loaded=False, unloaded=False):
     refs = []
     for ref in pc.ls(type=pc.nt.Reference):
@@ -172,11 +180,17 @@ def getAttrRecursiveGroup(node, attribute):
             break
     return attr
         
-def addOptionVar(name, value):
+def addOptionVar(name, value, array=False):
     if type(value) == type(int):
-        pc.optionVar(iv=(name, value))
+        if array:
+            pc.optionVar(iva=(name, value))
+        else:
+            pc.optionVar(iv=(name, value))
     elif isinstance(value, basestring):
-        pc.optionVar(sv=(name, value))
+        if array:
+            pc.optionVar(sva=(name, value))
+        else:
+            pc.optionVar(sv=(name, value))
         
 def getOptionVar(name):
     if pc.optionVar(exists=name):
@@ -568,22 +582,10 @@ def importScene(paths = [], *arg, **kwarg):
             except RuntimeError:
                 pc.error('File not found.')
 
-def addOptionVar(key, value, array = True):
-    '''
-    creates an option variable
-    '''
-    if array:
-        cmds.optionVar(sva = (key, value))
-    else:
-        cmds.optionVar(sv = (key, value))
-
 def removeOptionVar(key, index = None):
     if index is not None:
         cmds.optionVar(rfa = (key, index))
     else: cmds.optionVar(rm = key)
-
-def getOptionVars(key):
-    return cmds.optionVar(q = key)
 
 def createComponentChecks():
     # Doesn't belong here. Should be purged.
@@ -1285,6 +1287,13 @@ def getResolution():
                 pc.SCENE.vraySettings.height.get())
     return res
 
+def getDisplayLayers():
+    try:
+        return [pc.PyNode(layer) for layer in pc.layout('LayerEditorDisplayLayerLayout',
+                         q=True, childArray=True)]
+    except TypeError:
+        pc.warning('Display layers not found in the scene')
+        return []
 
 def getImageFilePrefix():
     prefix = ""
@@ -1519,7 +1528,7 @@ def getBitString():
 def setCurrentRenderLayer(layer):
     pc.editRenderLayerGlobals(crl=layer)
 
-if __name__ == "__main__":
-    for _ in xrange(1):
-        snapshot()
-    print "loaded"
+# if __name__ == "__main__":
+    #for _ in xrange(1):
+    #snapshot()
+    #print "loaded"
