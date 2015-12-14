@@ -1,8 +1,10 @@
 # Date: Mon 26/11/2012
 
 import os, tempfile
-import pymel.core as pc
-import maya.cmds as cmds
+try:
+    import pymel.core as pc
+    import maya.cmds as cmds
+except: pass
 import iutil as util
 import traceback
 op = os.path

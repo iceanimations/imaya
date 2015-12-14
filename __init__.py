@@ -3,7 +3,9 @@ reload(iMaya)
 def setConfig(conf):
     iMaya.conf = conf
 from iMaya import *
-import pymel.core as pc
+try:
+    import pymel.core as pc
+except: pass
 
 doCreateGeometryCache2 =r'''global proc string[] doCreateGeometryCache2 ( int $version, string $args[] )
 //A facsimle copy of doCreateGeometryCache just that args[6] i.e. export cache
@@ -315,5 +317,6 @@ doCreateGeometryCache2 =r'''global proc string[] doCreateGeometryCache2 ( int $v
         select -r $objsToCache;
         return $cacheFiles;
 };'''
-
-pc.Mel.eval(doCreateGeometryCache2)
+try:
+    pc.Mel.eval(doCreateGeometryCache2)
+except: pass
