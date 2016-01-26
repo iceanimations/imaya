@@ -10,6 +10,7 @@ import traceback
 op = os.path
 import re
 import shutil
+import subprocess
 from collections import OrderedDict
 
 FPS_MAPPINGS = {'film (24 fps)': 'film', 'pal (25 fps)': 'pal'}
@@ -25,6 +26,8 @@ class ArbitraryConf(object):
                  'resolution': [256, 256]}
 
 conf = ArbitraryConf()
+
+userHome = op.expanduser('~')
 
 class ExportError(Exception):
     '''
@@ -65,6 +68,20 @@ class FileInfo(object):
     def remove(cls, key):
         if cls.get(key):
             return pc.fileInfo.pop(key)
+        
+def mc2mdd(mcPath):
+    '''Converts a .mcc file to a .mdd file in the same directory'''
+    #___ define mdd path/name
+    mddpath = op.splitext(mcPath)[0].replace('\\', '/')
+    fps = '25'
+    #___ MC to PC2 to MDD
+    mcName = op.basename(mddpath)
+    mcPath = op.dirname(mddpath) +'/'
+    pc2 = mddpath +".pc2"
+    pc.cacheFile(pc2=0, pcf=pc2, f=mcName, dir=mcPath)
+    p = subprocess.Popen(["R:\\Pipe_Repo\\Users\\Qurban\\applications\\PC2_MDD.exe", pc2, mddpath +".mdd", fps], bufsize=2048, shell=True)
+    p.wait()
+    os.remove(pc2)
 
 def addFileInfo(key, value):
     pc.fileInfo(key, value)
