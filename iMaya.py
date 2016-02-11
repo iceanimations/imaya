@@ -69,6 +69,16 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
         
+def createRedshiftProxy(path):
+    node = pc.PyNode(pc.mel.redshiftCreateProxy()[0])
+    node.fileName.set(path)
+    return node
+
+def createGPUCache(path):
+    xformNode = pc.createNode('transform')
+    pc.createNode('gpuCache', parent=xformNode).cacheFileName.set(path)
+    pc.xform(xformNode, centerPivots=True)
+        
 def mc2mdd(mcPath):
     '''Converts a .mcc file to a .mdd file in the same directory'''
     #___ define mdd path/name
