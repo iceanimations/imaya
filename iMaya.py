@@ -833,6 +833,14 @@ def map_textures(mapping):
     return reverse
 
 def texture_mapping(newdir, olddir=None, scene_textures=None):
+    ''' Calculate a texture mapping dictionary 
+    :newdir: the path where the textures should be mapped to
+    :olddir: the path from where the textures should be mapped from, if an
+    argument is not provided then all are mapped to this directory
+    :scene_textures: operate only on this dictionary, if an argument is not
+    provided all scene textures are mapped
+    :return: dictionary with all the mappings
+    '''
     if not scene_textures:
         scene_textures = textureFiles(selection=False, returnAsDict=True)
 
