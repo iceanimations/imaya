@@ -69,6 +69,13 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
         
+def displaySmoothness(smooth=True):
+    '''equivalent to pressing 1 and 3 after selecting geometry'''
+    if smooth:
+        pc.mel.eval('displaySmoothness -divisionsU 3 -divisionsV 3 -pointsWire 16 -pointsShaded 4 -polygonObject 3;')
+    else:
+        pc.mel.eval('displaySmoothness -divisionsU 0 -divisionsV 0 -pointsWire 4 -pointsShaded 1 -polygonObject 1;')
+        
 def createRedshiftProxy(path):
     node = pc.PyNode(pc.mel.redshiftCreateProxy()[0])
     node.fileName.set(path)
