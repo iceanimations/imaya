@@ -1303,6 +1303,13 @@ def toggleTextureMode(val):
         pc.modelEditor(me, e=True, displayAppearance='smoothShaded')
         pc.modelEditor(me, e=True, dtx=val)
 
+def toggleViewport2Point0(flag):
+    '''Activates the Viewport 2.0 if flag is set to True'''
+    if flag:
+        pc.mel.setRendererInModelPanel("ogsRenderer", "modelPanel4")
+    else:
+        pc.mel.setRendererInModelPanel("base_OpenGL_Renderer", "modelPanel4")
+
 def getRenderLayers(nonReferencedOnly=True, renderableOnly=True):
     return [layer for layer in pc.ls(exactType='renderLayer')
             if ((not nonReferencedOnly or not layer.isReferenced()) and
