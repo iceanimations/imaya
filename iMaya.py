@@ -375,7 +375,7 @@ def meshesCompatible(mesh1, mesh2, max_tries=100):
             if len(mesh1.vtx) == len(mesh2.vtx):
                 if len(mesh1.e) == len(mesh2.e):
                     for i in range(min(len(mesh2.vtx), max_tries)):
-                        v = random.choice( mesh1.vtx )
+                        v = random.choice( mesh1.vtx.indices() )
                         if ( mesh1.vtx[v].numConnectedEdges() !=
                                 mesh2.vtx[v].numConnectedEdges() ):
                             return False
