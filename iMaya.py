@@ -11,6 +11,7 @@ op = os.path
 import re
 import shutil
 import subprocess
+import random
 from collections import OrderedDict
 
 FPS_MAPPINGS = {'film (24 fps)': 'film', 'pal (25 fps)': 'pal'}
@@ -368,11 +369,16 @@ def deleteCache(mesh=None):
     except Exception as ex:
         pc.warning(str(ex))
 
-def meshesCompatible(mesh1, mesh2):
+def meshesCompatible(mesh1, mesh2, max_tries=100):
     try:
         if len(mesh1.f) == len(mesh2.f):
             if len(mesh1.vtx) == len(mesh2.vtx):
                 if len(mesh1.e) == len(mesh2.e):
+                    for i in range(min(len(mesh2.vtx), max_tries)):
+                        v = random.choice( mesh1.vtx )
+                        if ( mesh1.vtx[v].numConnectedEdges() !=
+                                mesh2.vtx[v].numConnectedEdges() ):
+                            return False
                     return True
     except AttributeError:
         raise TypeError, 'Objects must be instances of pymel.core.nodetypes.Mesh'
