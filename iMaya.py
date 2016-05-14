@@ -11,6 +11,7 @@ op = os.path
 import re
 import shutil
 import subprocess
+import random
 from collections import OrderedDict
 
 FPS_MAPPINGS = {'film (24 fps)': 'film', 'pal (25 fps)': 'pal'}
@@ -368,11 +369,16 @@ def deleteCache(mesh=None):
     except Exception as ex:
         pc.warning(str(ex))
 
-def meshesCompatible(mesh1, mesh2):
+def meshesCompatible(mesh1, mesh2, max_tries=100):
     try:
         if len(mesh1.f) == len(mesh2.f):
             if len(mesh1.vtx) == len(mesh2.vtx):
                 if len(mesh1.e) == len(mesh2.e):
+                    for i in range(min(len(mesh2.vtx), max_tries)):
+                        v = random.choice( mesh1.vtx.indices() )
+                        if ( mesh1.vtx[v].numConnectedEdges() !=
+                                mesh2.vtx[v].numConnectedEdges() ):
+                            return False
                     return True
     except AttributeError:
         raise TypeError, 'Objects must be instances of pymel.core.nodetypes.Mesh'
@@ -833,6 +839,14 @@ def map_textures(mapping):
     return reverse
 
 def texture_mapping(newdir, olddir=None, scene_textures=None):
+    ''' Calculate a texture mapping dictionary 
+    :newdir: the path where the textures should be mapped to
+    :olddir: the path from where the textures should be mapped from, if an
+    argument is not provided then all are mapped to this directory
+    :scene_textures: operate only on this dictionary, if an argument is not
+    provided all scene textures are mapped
+    :return: dictionary with all the mappings
+    '''
     if not scene_textures:
         scene_textures = textureFiles(selection=False, returnAsDict=True)
 
