@@ -1305,10 +1305,15 @@ def toggleTextureMode(val):
 
 def toggleViewport2Point0(flag):
     '''Activates the Viewport 2.0 if flag is set to True'''
+    panl = 'modelPanel4'
+    for pan in pc.getPanel(allPanels=True):
+        if pan.name().startswith('modelPanel'):
+            if pc.modelEditor(pan, q=True, av=True):
+                panl = pan.name()
     if flag:
-        pc.mel.setRendererInModelPanel("ogsRenderer", "modelPanel4")
+        pc.mel.setRendererInModelPanel("ogsRenderer", panl)
     else:
-        pc.mel.setRendererInModelPanel("base_OpenGL_Renderer", "modelPanel4")
+        pc.mel.setRendererInModelPanel("base_OpenGL_Renderer", panl)
 
 def getRenderLayers(nonReferencedOnly=True, renderableOnly=True):
     return [layer for layer in pc.ls(exactType='renderLayer')
