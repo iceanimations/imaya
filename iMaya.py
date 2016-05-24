@@ -69,14 +69,14 @@ class FileInfo(object):
     def remove(cls, key):
         if cls.get(key):
             return pc.fileInfo.pop(key)
-        
+
 def displaySmoothness(smooth=True):
     '''equivalent to pressing 1 and 3 after selecting geometry'''
     if smooth:
         pc.mel.eval('displaySmoothness -divisionsU 3 -divisionsV 3 -pointsWire 16 -pointsShaded 4 -polygonObject 3;')
     else:
         pc.mel.eval('displaySmoothness -divisionsU 0 -divisionsV 0 -pointsWire 4 -pointsShaded 1 -polygonObject 1;')
-        
+
 def createRedshiftProxy(path):
     node = pc.PyNode(pc.mel.redshiftCreateProxy()[0])
     node.fileName.set(path)
@@ -86,7 +86,7 @@ def createGPUCache(path):
     xformNode = pc.createNode('transform')
     pc.createNode('gpuCache', parent=xformNode).cacheFileName.set(path)
     pc.xform(xformNode, centerPivots=True)
-        
+
 def mc2mdd(mcPath):
     '''Converts a .mcc file to a .mdd file in the same directory'''
     #___ define mdd path/name
@@ -103,7 +103,7 @@ def mc2mdd(mcPath):
 
 def addFileInfo(key, value):
     pc.fileInfo(key, value)
-    
+
 def getFileInfo(key=None, all=False):
     if all: return pc.fileInfo(q=True)
     for _key, value in pc.fileInfo(q=True):
@@ -146,7 +146,7 @@ def getCombinedMesh(ref):
                         meshes.append(node.firstParent())
                 except Exception as ex:
                     #self.errorsList.append('Could not retrieve combined mesh for Reference\n'+ref.path+'\nReason: '+ str(ex))
-                    pass
+                    print 'Error: %r: %r'%(type(ex), ex)
     return meshes
 
 def getMeshFromSet(ref):
@@ -171,12 +171,11 @@ def applyCache(mapping):
     and exports the combined models'''
     errorsList = []
     if mapping:
-        count = 1
         for cache, path in mapping.items():
             cacheFile = cache+'.xml'
-            if osp.exists(cacheFile):
+            if op.exists(cacheFile):
                 if path:
-                    if osp.exists(path):
+                    if op.exists(path):
                         ref = addRef(path)
                         meshes = getCombinedMesh(ref)
 #                         if len(meshes) != 1:
@@ -205,7 +204,7 @@ def getNiceName(name, full=False):
     if full:
         return name.replace(':', '_').replace('|', '_')
     return name.split(':')[-1].split('|')[-1]
-        
+
 def getAttrRecursiveGroup(node, attribute):
     '''returns the specified attribute (translation, rotation, scale) of a node traversing up to the first parent'''
     attr = (0, 0, 0)
@@ -216,7 +215,7 @@ def getAttrRecursiveGroup(node, attribute):
         except pc.MayaNodeError:
             break
     return attr
-        
+
 def addOptionVar(name, value, array=False):
     if type(value) == type(int):
         if array:
@@ -228,7 +227,7 @@ def addOptionVar(name, value, array=False):
             pc.optionVar(sva=(name, value))
         else:
             pc.optionVar(sv=(name, value))
-        
+
 def getOptionVar(name):
     if pc.optionVar(exists=name):
         return pc.optionVar(q=name)
@@ -255,7 +254,7 @@ def addCamera(name):
     camera = pc.ls(sl=True)[0]
     pc.rename(camera, name)
     return camera
-        
+
 def addMeshesToGroup(meshes, grp):
     group2 = pc.ls(grp)
     if group2:
@@ -839,7 +838,7 @@ def map_textures(mapping):
     return reverse
 
 def texture_mapping(newdir, olddir=None, scene_textures=None):
-    ''' Calculate a texture mapping dictionary 
+    ''' Calculate a texture mapping dictionary
     :newdir: the path where the textures should be mapped to
     :olddir: the path from where the textures should be mapped from, if an
     argument is not provided then all are mapped to this directory
@@ -1174,7 +1173,7 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
             print meshes
             for i in xrange(len(meshes)):
                 meshes[i].outMesh >> polyUnite.inputPoly[i]
-                meshes[i].worldMatrix[0] >> polyUnite.inputMat[i]
+                meshes[i].worldMatrix[meshes[i].instanceNumber()] >> polyUnite.inputMat[i]
 
             polyUnite.output >> combineMesh.inMesh
             pc.select(cl=True)
