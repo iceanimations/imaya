@@ -166,55 +166,10 @@ def getMeshFromSet(ref):
             return meshes
     return meshes
 
-def applyCache(mapping):
-    '''applies cache on the combined models connected to geo_sets
-    and exports the combined models'''
-    errorsList = []
-    if mapping:
-        for cache, path in mapping.items():
-            cacheFile = cache+'.xml'
-            if op.exists(cacheFile):
-                if path:
-                    if op.exists(path):
-                        ref = addRef(path)
-                        meshes = getCombinedMesh(ref)
-#                         if len(meshes) != 1:
-#                             meshes = getMeshFromSet(ref)
-                        if meshes:
-                            if len(meshes) == 1:
-                                pc.mel.doImportCacheFile(cacheFile.replace('\\', '/'), "", meshes, list())
-                            else:
-                                errorsList.append('Unable to identify Combined mesh or ObjectSet\n'+ path +'\n'+ '\n'.join(meshes))
-                                pc.delete(meshes)
-                                ref.remove()
-                        else:
-                            errorsList.append('Could not find or build combined mesh from\n'+path)
-                            ref.remove()
-                    else:
-                        errorsList.append('LD path does not exist for '+cache+'\n'+ path)
-                else:
-                    errorsList.append('No LD added for '+ cache)
-            else:
-                errorsList.append('cache file does not exist\n'+ cache)
-    else:
-        errorsList.append('No mappings found in the file')
-    return errorsList
-
 def getNiceName(name, full=False):
     if full:
         return name.replace(':', '_').replace('|', '_')
     return name.split(':')[-1].split('|')[-1]
-
-def getAttrRecursiveGroup(node, attribute):
-    '''returns the specified attribute (translation, rotation, scale) of a node traversing up to the first parent'''
-    attr = (0, 0, 0)
-    for _ in range(200):
-        attr = tuple(operator.add(attr, pc.PyNode(str(node)+ '.'+ attribute).get()))
-        try:
-            node= node.firstParent()
-        except pc.MayaNodeError:
-            break
-    return attr
 
 def addOptionVar(name, value, array=False):
     if type(value) == type(int):
