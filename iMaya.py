@@ -1223,7 +1223,7 @@ def openFile(filename):
             if ext in ['.ma', '.mb']:
                 typ = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
                 try:
-                    cmds.file(filename.replace('\\', '/'), f=True, options="v=0;", ignoreVersion=True, prompt=0, loadReferenceDepth="all", type=typ, o=True)
+                    cmds.file(filename.replace('\\', '/'), f=True, options="v=0;", ignoreVersion=True, prompt=1, loadReference="asPrefs", type=typ, o=True)
                 except RuntimeError:
                     pass
             else:
