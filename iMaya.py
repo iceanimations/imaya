@@ -254,15 +254,21 @@ def undoChunk(func):
             return res
     return _wrapper
 
-def getCombinedMeshFromSet(_set):
+def getCombinedMeshFromSet(_set, midfix='shaded'):
     meshes = [shape for transform in _set.dsm.inputs() for shape in transform.getShapes(ni=True, type='mesh')]
     if not meshes: return
     pc.select(meshes)
+    meshName =_set.name().replace('_geo_', '_' + midfix + '_').replace('_set',
+            '_combined')
     if len(meshes) == 1:
-        mesh = pc.duplicate(ic=True, name=_set.name().replace('_geo_', '_shaded_').replace('_set', '_combined'))[0]
+        mesh = pc.duplicate(ic=True, name=meshName)[0]
         pc.parent(mesh, w=True)
+        meshes[0].io.set(True)
+        trash = [child for child in mesh.getChildren() if child !=
+                mesh.getShape(type='mesh', ni=True)]
+        pc.delete(trash)
     else:
-        mesh = pc.polyUnite(ch=1, mergeUVSets=1, name=_set.name().replace('_geo_', '_shaded_').replace('_set', '_combined'))[0]
+        mesh = pc.polyUnite(ch=1, mergeUVSets=1, name=meshName)[0]
     try: pc.delete(_set)
     except: pass
     return mesh
