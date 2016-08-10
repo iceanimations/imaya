@@ -738,7 +738,7 @@ def getFullpathFromAttr(attr):
     '''
     node = pc.PyNode(attr).node()
     val = node.cfnp.get()
-    if '<f>.' not in val: val = node.ftn.get()
+    #if '<f>.' not in val: val = node.ftn.get()
     return val
 
 def readPathAttr(attr):
