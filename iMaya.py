@@ -1171,14 +1171,16 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
 
     return caches
 
-def openFile(filename):
+def openFile(filename, prompt=1):
     if op.exists(filename):
         if op.isfile(filename):
             ext = op.splitext(filename)[-1]
             if ext in ['.ma', '.mb']:
                 typ = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
                 try:
-                    cmds.file(filename.replace('\\', '/'), f=True, options="v=0;", ignoreVersion=True, prompt=1, loadReference="asPrefs", type=typ, o=True)
+                    cmds.file(filename.replace('\\', '/'), f=True,
+                            options="v=0;", ignoreVersion=True, prompt=prompt,
+                            loadReference="asPrefs", type=typ, o=True)
                 except RuntimeError:
                     pass
             else:
