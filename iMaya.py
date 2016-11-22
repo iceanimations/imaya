@@ -1184,11 +1184,11 @@ def openFile(filename, prompt=1):
                 except RuntimeError:
                     pass
             else:
-                pc.warning('Specified path is not a maya file: %s'%filename)
+                pc.error('Specified path is not a maya file: %s'%filename)
         else:
-            pc.warning('Specified path is not a file: %s'%filename)
+            pc.error('Specified path is not a file: %s'%filename)
     else:
-        pc.warning('File path does not exist: %s'%filename)
+        pc.error('File path does not exist: %s'%filename)
 
 def saveSceneAs(path):
     cmds.file(rename=path)
