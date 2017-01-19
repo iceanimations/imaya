@@ -1394,7 +1394,7 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
         tokens['<layer>']=re.sub(r'\.|:', '_', str(layer))
         tokens['<renderlayer>'] = tokens['<layer>']
 
-        sceneName, ext=op.splitext( op.basename(pc.sceneName()) )
+        sceneName, _ = op.splitext( op.basename(pc.sceneName()) )
         if not sceneName:
             sceneName = pc.untitledFileName()
         tokens['<scene>']=sceneName
@@ -1408,6 +1408,7 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
         for aov in filter(lambda x:x.enabled.get(), pc.ls(type='RedshiftAOV')):
 
             newpath = aov.filePrefix.get()
+            extIndex = aov.fileFormat.get()
 
             if pc.attributeQuery('name', n=aov, exists=True):
                 renderpass = aov.attr('name').get()
@@ -1421,11 +1422,10 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
                 renderpass = rp
                 renderpasses.add(renderpass)
 
+            exts = ['.iff', '.exr', '.tif', '.png', '.tga', '.jpg']
             tokens['<renderpass>'] = tokens['<aov>'] = renderpass
-
             newpath = replaceTokens(tokens, newpath)
-
-            newpath = newpath+('.' if number else '')+number+ext
+            newpath = newpath+('.' if number else '')+number+exts[extIndex]
             paths.append(newpath)
 
 
