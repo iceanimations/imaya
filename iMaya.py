@@ -103,12 +103,11 @@ def mc2mdd(mcPath):
     os.remove(pc2)
 
 def addFileInfo(key, value):
-    pc.fileInfo(key, value)
+    FileInfo.save(key, value)
 
 def getFileInfo(key=None, all=False):
     if all: return pc.fileInfo(q=True)
-    for _key, value in pc.fileInfo(q=True):
-        if _key == key: return value
+    return FileInfo.get(key)
 
 def getReferences(loaded=False, unloaded=False):
     refs = []
