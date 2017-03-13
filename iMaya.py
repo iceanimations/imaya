@@ -472,9 +472,6 @@ def newScene(func = None):
         if kwarg.get("newScene"):
             pc.newFile(f=True)
         else: pass
-        print "newScene"
-        print arg
-        print kwarg
         return func(*arg, **kwarg)
     return wrapper if func else pc.newFile(f=True)
 
@@ -486,9 +483,6 @@ def newcomerObjs(func):
     def wrapper(*arg, **kwarg):
         selection = cmds.ls(sl = True)
         cur = cmds.ls()
-        print "newcomerObjs"
-        print arg
-        print kwarg
         func(*arg, **kwarg)
         new = objSetDiff(cmds.ls(), cur)
         pc.select(selection)
@@ -892,12 +886,10 @@ def render(*arg, **kwarg):
             pc.select(getShadingEngineHistoryChain(kwarg.get("sg").keys()[0]),
                       ne = True)
             pc.Mel.eval('file -type "mayaAscii"')
-            print "exporting"
             print export(op.basename(shader),
                          op.dirname(shader),
                          selection = True,
                          pr = False)
-            print "exported"
             with tempfile.NamedTemporaryFile(suffix = ".png") as fobj:
                 renImage = op.splitext(fobj.name)[0]
 
@@ -911,7 +903,6 @@ def render(*arg, **kwarg):
             # quick hack to avoid rendering image not found error
             result = (r"R:\Pipe_Repo\Projects\DAM\Data\prod\assets\test\myTestThings\textures\.archive\face.png\2012-09-05_14-08-49.747865\face.png", shader + ".ma")
             # result = (renImage + ".png", shader + ".ma")
-            print "result: ", result
             # if int(status) != 0 or not all(map(op.exists, result)):
             #     raise ExportError(obj = kwarg["sg"].keys()[0])
 
@@ -1170,22 +1161,24 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
 
     return caches
 
-def openFile(filename):
+def openFile(filename, prompt=1):
     if op.exists(filename):
         if op.isfile(filename):
             ext = op.splitext(filename)[-1]
             if ext in ['.ma', '.mb']:
                 typ = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
                 try:
-                    cmds.file(filename.replace('\\', '/'), f=True, options="v=0;", ignoreVersion=True, prompt=1, loadReference="asPrefs", type=typ, o=True)
+                    cmds.file(filename.replace('\\', '/'), f=True,
+                            options="v=0;", ignoreVersion=True, prompt=prompt,
+                            loadReference="asPrefs", type=typ, o=True)
                 except RuntimeError:
                     pass
             else:
-                pc.warning('Specified path is not a maya file: %s'%filename)
+                pc.error('Specified path is not a maya file: %s'%filename)
         else:
-            pc.warning('Specified path is not a file: %s'%filename)
+            pc.error('Specified path is not a file: %s'%filename)
     else:
-        pc.warning('File path does not exist: %s'%filename)
+        pc.error('File path does not exist: %s'%filename)
 
 def saveSceneAs(path):
     cmds.file(rename=path)
@@ -1355,27 +1348,30 @@ def getRenderPassNames(enabledOnly=True, nonReferencedOnly=True):
         return []
 
 frameno_re = re.compile(r'\d+')
-renderpass_re = re.compile('<renderpass>', re.I)
-aov_re = re.compile('<aov>', re.I)
 def removeLastNumber(path, bychar='?'):
-    numbers = frameno_re.findall(path)
+    dirname, basename = op.split(path)
+    numbers = frameno_re.findall(basename)
     if numbers:
-        pos = path.rfind(numbers[-1])
-        path = path[:pos] + path[pos:].replace(numbers[-1],  bychar * len(numbers[-1]))
+        pos = basename.rfind(numbers[-1])
+        basename = basename[:pos] + basename[pos:].replace(numbers[-1], bychar
+                * len(numbers[-1]))
+        path = op.normpath( op.join(dirname, basename) )
         return path, numbers[-1]
     return path, ''
 
+def replaceTokens(tokens, path):
+    for key, value in tokens.items():
+        if key and value:
+            path = re.compile(key, re.I).sub(value, path)
+    return path
 
+renderpass_re = re.compile('<renderpass>', re.I)
+aov_re = re.compile('<aov>', re.I)
 def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     paths = []
     renderer = currentRenderer()
 
     if renderer == 'redshift':
-        print path, type(path)
-        beauty = renderpass_re.sub('Beauty', path)
-        beauty = aov_re.sub('Beauty', beauty )
-        paths.append(beauty)
-
         tokens = OrderedDict()
 
         tokens['<beautypath>']=op.dirname(path)
@@ -1397,15 +1393,21 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
         tokens['<layer>']=re.sub(r'\.|:', '_', str(layer))
         tokens['<renderlayer>'] = tokens['<layer>']
 
-        sceneName, ext=op.splitext(op.basename(pc.sceneName()))
+        sceneName, _ = op.splitext( op.basename(pc.sceneName()) )
         if not sceneName:
             sceneName = pc.untitledFileName()
         tokens['<scene>']=sceneName
+
+        beauty = renderpass_re.sub('Beauty', path)
+        beauty = aov_re.sub('Beauty', beauty )
+        beauty = replaceTokens(tokens, beauty)
+        paths.append(beauty)
 
         renderpasses = set()
         for aov in filter(lambda x:x.enabled.get(), pc.ls(type='RedshiftAOV')):
 
             newpath = aov.filePrefix.get()
+            extIndex = aov.fileFormat.get()
 
             if pc.attributeQuery('name', n=aov, exists=True):
                 renderpass = aov.attr('name').get()
@@ -1419,13 +1421,10 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
                 renderpass = rp
                 renderpasses.add(renderpass)
 
+            exts = ['.iff', '.exr', '.tif', '.png', '.tga', '.jpg']
             tokens['<renderpass>'] = tokens['<aov>'] = renderpass
-
-            for key, value in tokens.items():
-                if key and value:
-                    newpath = re.compile(key, re.I).sub(value, newpath)
-
-            newpath = newpath+('.' if number else '')+number+ext
+            newpath = replaceTokens(tokens, newpath)
+            newpath = newpath+('.' if number else '')+number+exts[extIndex]
             paths.append(newpath)
 
 
@@ -1444,13 +1443,14 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     return paths
 
 
-def getGenericImageName(layer=None, camera=None, resolveAOVs=True, framePadder='?'):
+def getGenericImageName(layer=None, camera=None, resolveAOVs=True,
+        framePadder='?'):
     gins = []
 
     path = None
 
-    if currentRenderer() == 'redshift':
-        path = pc.PyNode('redshiftOptions').imageFilePrefix.get()
+    # if currentRenderer() == 'redshift':
+        # path = pc.PyNode('redshiftOptions').imageFilePrefix.get()
 
     if path is None:
         if layer is None and camera is None:
@@ -1460,7 +1460,8 @@ def getGenericImageName(layer=None, camera=None, resolveAOVs=True, framePadder='
         elif camera is None:
             fin = pc.renderSettings(fin=True, lut=True, layer=layer)
         else:
-            fin = pc.renderSettings(fin=True, lut=True, layer=layer, camera=camera)
+            fin = pc.renderSettings(fin=True, lut=True, layer=layer,
+                    camera=camera)
         path = fin[0]
 
 
