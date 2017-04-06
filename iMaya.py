@@ -331,9 +331,11 @@ def deleteCache(mesh=None):
 
 def meshesCompatible(mesh1, mesh2, max_tries=100):
     try:
-        if len(mesh1.f) == len(mesh2.f):
-            if len(mesh1.vtx) == len(mesh2.vtx):
-                if len(mesh1.e) == len(mesh2.e):
+        if pc.polyEvaluate(mesh1, f=True) == pc.polyEvaluate(mesh2, f=True):
+            if pc.polyEvaluate(mesh1, v=True) == pc.polyEvaluate(mesh2,
+                    v=True):
+                if pc.polyEvaluate(mesh1, e=True) == pc.polyEvaluate(mesh2,
+                        e=True):
                     for i in range(min(len(mesh2.vtx), max_tries)):
                         v = random.choice( mesh1.vtx.indices() )
                         if ( mesh1.vtx[v].numConnectedEdges() !=
