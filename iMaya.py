@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import random
 from collections import OrderedDict
+import functools
 import fillinout
 
 FPS_MAPPINGS = {'film (24 fps)': 'film', 'pal (25 fps)': 'pal'}
@@ -293,6 +294,15 @@ def removeNamespace(obj=None):
     ns = ':'.join(nameParts[0:-1]) + ':'
     pc.namespace(mergeNamespaceWithRoot=True, removeNamespace=ns)
 
+def isNodeType(node, typ=None):
+    if typ is None:
+        typ = pc.nt.Transform
+    if typ != pc.nt.Transform and isinstance(node, pc.nt.Transform):
+        node = node.getShape(ni=True)
+    return isinstance(node, typ)
+
+isMesh = functools.partial(isNodeType, typ=pc.nt.Mesh)
+
 def applyCache(node, xmlFilePath):
     '''
     applies cache to the given mesh or set
@@ -329,44 +339,111 @@ def deleteCache(mesh=None):
     except Exception as ex:
         pc.warning(str(ex))
 
-def meshesCompatible(mesh1, mesh2, max_tries=100):
-    try:
-        if pc.polyEvaluate(mesh1, f=True) == pc.polyEvaluate(mesh2, f=True):
-            if pc.polyEvaluate(mesh1, v=True) == pc.polyEvaluate(mesh2,
-                    v=True):
-                if pc.polyEvaluate(mesh1, e=True) == pc.polyEvaluate(mesh2,
-                        e=True):
-                    for i in range(min(len(mesh2.vtx), max_tries)):
-                        v = random.choice( mesh1.vtx.indices() )
-                        if ( mesh1.vtx[v].numConnectedEdges() !=
-                                mesh2.vtx[v].numConnectedEdges() ):
-                            return False
-                    return True
-    except AttributeError:
-        raise TypeError, 'Objects must be instances of pymel.core.nodetypes.Mesh'
-    return False
+def meshesCompatible(mesh1, mesh2, max_tries=100, feedback=False):
+    reasons = {}
+    status = True
 
-def setsCompatible(obj1, obj2):
+    if not isMesh(mesh1):
+        raise TypeError (
+                'Object %r is not an instance of pymel.core.nodetypes.Mesh' % (
+                    mesh1 ) )
+    if not isMesh(mesh2):
+        raise TypeError (
+                'Object %r is not an instance of pymel.core.nodetypes.Mesh' % (
+                    mesh2 ) )
+
+    faces = pc.polyEvaluate(mesh1, f=True), pc.polyEvaluate(mesh2, f=True)
+    vertices = pc.polyEvaluate(mesh1, v=True), pc.polyEvaluate(mesh2, v=True)
+    edges = pc.polyEvaluate(mesh1, e=True), pc.polyEvaluate(mesh2, e=True)
+
+    if faces[0] != faces[1]:
+        if feedback: reasons['faces']=faces
+        status = False
+    if vertices[0] != vertices[1]:
+        if feedback: reasons['vertices'] = vertices
+        status = False
+    if edges[0] != edges[1]:
+        if feedback: reasons['edges'] = edges
+        status = False
+
+    if status:
+        for i in range(min(len(mesh2.vtx), max_tries)):
+            v = random.choice( mesh1.vtx.indices() )
+            connEdges = ( mesh1.vtx[v].numConnectedEdges(),
+                    mesh2.vtx[v].numConnectedEdges()  )
+            if connEdges[0] != connEdges[1]:
+                status = False
+                if feedback: reasons['vertexOrder'] = (v, connEdges)
+                break
+
+    if feedback:
+        return status, reasons
+    else:
+        return status
+
+def removeNamespaceFromName(obj):
+    splits = obj.split(':')
+    return ':'.join(splits[1:-1] + [splits[-1]])
+
+def removeNamespaceFromPathName(path):
+    return '|'.join([removeNamespaceFromName(x) for x in path.split('|')])
+
+def setsCompatible(obj1, obj2, feedback=False):
     '''
     returns True if two ObjectSets are compatible for cache
     '''
-    if type(obj1) != pc.nt.ObjectSet and type(obj2) != pc.nt.ObjectSet:
-        raise TypeError, 'Values must be instances of pymel.core.nodetypes.ObjectSet'
+    reasons = {}
+    if type(obj1) != pc.nt.ObjectSet:
+        raise TypeError(
+                "Object %r is not an instance of pc.nt.ObjectSet"%( obj1 ))
+    if type(obj2) != pc.nt.ObjectSet:
+        raise TypeError(
+                "Object %r is not an instance of pc.nt.ObjectSet"%( obj2 ))
     flag = True
+
+    len1 = len(obj1)
+    len2 = len(obj2)
+
     # check if the number of members is equal in both sets
-    if len(obj1) == len(obj2):
-        # check if the order and meshes are compatible in each set
-        for i in range(len(obj1)):
-            try:
-                if not meshesCompatible(obj1.dagSetMembers[i].inputs()[0],
-                                        obj2.dagSetMembers[i].inputs()[0]):
-                    flag = False
-                    break
-            except IndexError:
-                flag = False
-                break
-    else:
+    if len1 != len2:
+        s1 = [removeNamespaceFromPathName(s) for s in obj1]
+        s2 = [removeNamespaceFromPathName(s) for s in obj1]
+        missing = set(s1) - set(s2)
+        if feedback and missing:
+            reasons['missing'] = missing
+        extras = set(s2) - set(s1)
+        if feedback and extras:
+            reasons['extras'] = extras
         flag = False
+
+    # check if the order and meshes are compatible in each set
+    for i in range(max(len1, len2)):
+        try:
+            mesh1 = obj1.dagSetMembers[i].inputs()[0]
+            mesh2 = obj2.dagSetMembers[i].inputs()[0]
+            mesh_comp, mesh_reasons = meshesCompatible(mesh1, mesh2,
+                    feedback=True)
+            if not mesh_comp:
+                flag = False
+                if feedback:
+                    if not reasons.get('unmatched', None):
+                        reasons[ 'unmatched' ] = {}
+                    reasons['unmatched'][i] = (
+                            removeNamespaceFromPathName(mesh1),
+                            removeNamespaceFromPathName(mesh2), mesh_reasons)
+        except IndexError:
+            pass
+        except TypeError as e:
+            import traceback
+            traceback.print_exc()
+            flag = False
+            if feedback:
+                if not reasons.get('errors', None):
+                    reasons[ 'errors' ] = []
+                reasons['errors'].append(('TypeError', str(e)))
+
+    if feedback:
+        return flag, reasons
     return flag
 
 geo_sets_compatible = setsCompatible
