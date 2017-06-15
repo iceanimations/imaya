@@ -1240,18 +1240,22 @@ def make_cache(objs, frame_in, frame_out, directory, naming):
 
     return caches
 
-def openFile(filename, prompt=1):
+def openFile(filename, prompt=1, onError='rename'):
     if op.exists(filename):
         if op.isfile(filename):
             ext = op.splitext(filename)[-1]
             if ext in ['.ma', '.mb']:
                 typ = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
+                typ.joinj
                 try:
                     cmds.file(filename.replace('\\', '/'), f=True,
                             options="v=0;", ignoreVersion=True, prompt=prompt,
                             loadReference="asPrefs", type=typ, o=True)
-                except RuntimeError:
-                    cmds.file(rename=filename)
+                except RuntimeError as error:
+                    if 'rename' == onError:
+                        cmds.file(rename=filename)
+                    if 'raise' == onError:
+                        raise error
             else:
                 pc.error('Specified path is not a maya file: %s'%filename)
         else:
