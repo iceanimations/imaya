@@ -1251,7 +1251,7 @@ def openFile(filename, prompt=1):
                             options="v=0;", ignoreVersion=True, prompt=prompt,
                             loadReference="asPrefs", type=typ, o=True)
                 except RuntimeError:
-                    pass
+                    cmds.file(rename=filename)
             else:
                 pc.error('Specified path is not a maya file: %s'%filename)
         else:
