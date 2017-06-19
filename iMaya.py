@@ -1246,7 +1246,6 @@ def openFile(filename, prompt=1, onError='rename'):
             ext = op.splitext(filename)[-1]
             if ext in ['.ma', '.mb']:
                 typ = 'mayaBinary' if ext == '.mb' else 'mayaAscii'
-                typ.joinj
                 try:
                     cmds.file(filename.replace('\\', '/'), f=True,
                             options="v=0;", ignoreVersion=True, prompt=prompt,
