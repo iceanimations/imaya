@@ -1,13 +1,17 @@
-# Date: Mon 26/11/2012
+'''
+Main file for library iMaya
+'''
 
 import os, tempfile
+
 try:
     import pymel.core as pc
     import maya.cmds as cmds
-except: pass
+except:
+    pass
+
 import iutil as util
 import traceback
-op = os.path
 import re
 import shutil
 import subprocess
@@ -16,8 +20,27 @@ from collections import OrderedDict
 import functools
 import fillinout
 
-FPS_MAPPINGS = {'film (24 fps)': 'film', 'pal (25 fps)': 'pal'}
+from . import utils
+from . import textures
+from . import geosets
+from . import references
+from . import exceptions
 
+reload(utils)
+reload(texture)
+reload(geosets)
+reload(references)
+reload(exceptions)
+
+from .texture import *
+from .geosets import *
+from .references import *
+from .exceptions import *
+from .utils import *
+
+
+op = os.path
+FPS_MAPPINGS = {'film (24 fps)': 'film', 'pal (25 fps)': 'pal'}
 
 class ArbitraryConf(object):
     # iMaya depends on the following external attributes
@@ -32,30 +55,6 @@ conf = ArbitraryConf()
 
 userHome = op.expanduser('~')
 
-class ExportError(Exception):
-    '''
-    Maya asset export failed.
-    '''
-    def __init__(self, *arg, **kwarg):
-        self.code = 0
-        self.error = "Export failed. Some error occured while exporting maya scene."
-        self.value = kwarg.get("obj","")
-        self.strerror = self.__str__()
-
-    def __str__(self):
-        return (self.value + ". " if self.value else "") + self.error
-
-class ShaderApplicationError(Exception):
-    '''
-    Unable to apply shader.
-    '''
-    def __init__(self, *arg, **kwarg):
-        self.code = 1
-        self.error = "Unable to apply shader"
-        self.strerror = self.__str__()
-
-    def __str__(self):
-        return "ShaderApplicationError: ", self.error
 
 class FileInfo(object):
 
@@ -72,6 +71,7 @@ class FileInfo(object):
         if cls.get(key):
             return pc.fileInfo.pop(key)
 
+
 def displaySmoothness(smooth=True):
     '''equivalent to pressing 1 and 3 after selecting geometry'''
     if smooth:
@@ -79,15 +79,18 @@ def displaySmoothness(smooth=True):
     else:
         pc.mel.eval('displaySmoothness -divisionsU 0 -divisionsV 0 -pointsWire 4 -pointsShaded 1 -polygonObject 1;')
 
+
 def createRedshiftProxy(path):
     node = pc.PyNode(pc.mel.redshiftCreateProxy()[0])
     node.fileName.set(path)
     return node
 
+
 def createGPUCache(path):
     xformNode = pc.createNode('transform')
     pc.createNode('gpuCache', parent=xformNode).cacheFileName.set(path)
     pc.xform(xformNode, centerPivots=True)
+
 
 def mc2mdd(mcPath):
     '''Converts a .mcc file to a .mdd file in the same directory'''
@@ -103,74 +106,15 @@ def mc2mdd(mcPath):
     p.wait()
     os.remove(pc2)
 
+
 def addFileInfo(key, value):
     FileInfo.save(key, value)
+
 
 def getFileInfo(key=None, all=False):
     if all: return pc.fileInfo(q=True)
     return FileInfo.get(key)
 
-def getReferences(loaded=False, unloaded=False):
-    refs = []
-    for ref in pc.ls(type=pc.nt.Reference):
-        if ref.referenceFile():
-            refs.append(ref.referenceFile())
-    if loaded:
-        return [ref for ref in refs if ref.isLoaded()]
-    if unloaded:
-        return [ref for ref in refs if not ref.isLoaded()]
-    return refs
-
-def getRefFromSet(geoset):
-    for ref in getReferences(loaded=True):
-        if geoset in ref.nodes():
-            return ref
-
-def addRef(path):
-    namespace = os.path.basename(path)
-    namespace = os.path.splitext(namespace)[0]
-    match = re.match('(.*)([-._]v\d+)(.*)', namespace)
-    if match:
-        namespace = match.group(1) + match.group(3)
-    return pc.createReference(path, namespace=namespace, mnc=False)
-
-def getCombinedMesh(ref):
-    '''returns the top level meshes from a reference node'''
-    meshes = []
-    if ref:
-        for node in pc.FileReference(ref).nodes():
-            if type(node) == pc.nt.Mesh:
-                try:
-                    node.firstParent().firstParent()
-                except pc.MayaNodeError:
-                    if not node.isIntermediate():
-                        meshes.append(node.firstParent())
-                except Exception as ex:
-                    #self.errorsList.append('Could not retrieve combined mesh for Reference\n'+ref.path+'\nReason: '+ str(ex))
-                    print 'Error: %r: %r'%(type(ex), ex)
-    return meshes
-
-def getMeshFromSet(ref):
-    meshes = []
-    if ref:
-        try:
-            _set = [obj for obj in ref.nodes() if 'geo_set' in obj.name()
-                    and type(obj)==pc.nt.ObjectSet ][0]
-            meshes = [shape
-                    for transform in pc.PyNode(_set).dsm.inputs(type="transform")
-                    for shape in transform.getShapes(type = "mesh", ni = True)]
-            #return [pc.polyUnite(ch=1, mergeUVSets=1, *_set.members())[0]] # put the first element in list and return
-            combinedMesh = pc.polyUnite(ch=1, mergeUVSets=1, *meshes)[0]
-            combinedMesh.rename(getNiceName(_set) + '_combinedMesh')
-            return [combinedMesh] # put the first element in list and return
-        except:
-            return meshes
-    return meshes
-
-def getNiceName(name, full=False):
-    if full:
-        return name.replace(':', '_').replace('|', '_')
-    return name.split(':')[-1].split('|')[-1]
 
 def addOptionVar(name, value, array=False):
     if type(value) == type(int):
@@ -233,46 +177,6 @@ def batchRender():
         pc.mel.mayaBatchRenderProcedure(1, "", "", "", "")
         layer.renderable.set(0)
 
-
-def undoChunk(func):
-    ''' This is a decorator for all functions that cause a change in a maya
-    scene. It wraps all changes of the decorated function in a single undo
-    chunk
-    '''
-    def _wrapper(*args, **dargs):
-        res = None
-        try:
-            undoChunk = dargs.pop('chunkOpen')
-        except KeyError:
-            undoChunk = None
-        if undoChunk is True:
-            pc.undoInfo(openChunk=True)
-        try:
-            res = func(*args, **dargs)
-        finally:
-            if undoChunk is False:
-                pc.undoInfo(closeChunk=True)
-            return res
-    return _wrapper
-
-def getCombinedMeshFromSet(_set, midfix='shaded'):
-    meshes = [shape for transform in _set.dsm.inputs() for shape in transform.getShapes(ni=True, type='mesh')]
-    if not meshes: return
-    pc.select(meshes)
-    meshName =_set.name().replace('_geo_', '_' + midfix + '_').replace('_set',
-            '_combined')
-    if len(meshes) == 1:
-        mesh = pc.duplicate(ic=True, name=meshName)[0]
-        pc.parent(mesh, w=True)
-        meshes[0].io.set(True)
-        trash = [child for child in mesh.getChildren() if child !=
-                mesh.getShape(type='mesh', ni=True)]
-        pc.delete(trash)
-    else:
-        mesh = pc.polyUnite(ch=1, mergeUVSets=1, name=meshName)[0]
-    try: pc.delete(_set)
-    except: pass
-    return mesh
 
 def createShadingNode(typ):
     return pc.PyNode(pc.mel.eval('createRenderNodeCB -asShader "surfaceShader" %s "";'%typ))
@@ -339,153 +243,12 @@ def deleteCache(mesh=None):
     except Exception as ex:
         pc.warning(str(ex))
 
-def meshesCompatible(mesh1, mesh2, max_tries=100, feedback=False):
-    reasons = {}
-    status = True
-
-    if not isMesh(mesh1):
-        raise TypeError (
-                'Object %r is not an instance of pymel.core.nodetypes.Mesh' % (
-                    mesh1 ) )
-    if not isMesh(mesh2):
-        raise TypeError (
-                'Object %r is not an instance of pymel.core.nodetypes.Mesh' % (
-                    mesh2 ) )
-
-    faces = pc.polyEvaluate(mesh1, f=True), pc.polyEvaluate(mesh2, f=True)
-    vertices = pc.polyEvaluate(mesh1, v=True), pc.polyEvaluate(mesh2, v=True)
-    edges = pc.polyEvaluate(mesh1, e=True), pc.polyEvaluate(mesh2, e=True)
-
-    if faces[0] != faces[1]:
-        if feedback: reasons['faces']=faces
-        status = False
-    if vertices[0] != vertices[1]:
-        if feedback: reasons['vertices'] = vertices
-        status = False
-    if edges[0] != edges[1]:
-        if feedback: reasons['edges'] = edges
-        status = False
-
-    if status:
-        for i in range(min(len(mesh2.vtx), max_tries)):
-            v = random.choice( mesh1.vtx.indices() )
-            connEdges = ( mesh1.vtx[v].numConnectedEdges(),
-                    mesh2.vtx[v].numConnectedEdges()  )
-            if connEdges[0] != connEdges[1]:
-                status = False
-                if feedback: reasons['vertexOrder'] = (v, connEdges)
-                break
-
-    if feedback:
-        return status, reasons
-    else:
-        return status
-
 def removeNamespaceFromName(obj):
     splits = obj.split(':')
     return ':'.join(splits[1:-1] + [splits[-1]])
 
 def removeNamespaceFromPathName(path):
     return '|'.join([removeNamespaceFromName(x) for x in path.split('|')])
-
-def setsCompatible(obj1, obj2, feedback=False):
-    '''
-    returns True if two ObjectSets are compatible for cache
-    '''
-    reasons = {}
-    if type(obj1) != pc.nt.ObjectSet:
-        raise TypeError(
-                "Object %r is not an instance of pc.nt.ObjectSet"%( obj1 ))
-    if type(obj2) != pc.nt.ObjectSet:
-        raise TypeError(
-                "Object %r is not an instance of pc.nt.ObjectSet"%( obj2 ))
-    flag = True
-
-    len1 = len(obj1)
-    len2 = len(obj2)
-
-    # check if the number of members is equal in both sets
-    if len1 != len2:
-        s1 = [removeNamespaceFromPathName(s) for s in obj1]
-        s2 = [removeNamespaceFromPathName(s) for s in obj1]
-        missing = set(s1) - set(s2)
-        if feedback and missing:
-            reasons['missing'] = missing
-        extras = set(s2) - set(s1)
-        if feedback and extras:
-            reasons['extras'] = extras
-        flag = False
-
-    # check if the order and meshes are compatible in each set
-    for i in range(max(len1, len2)):
-        try:
-            mesh1 = obj1.dagSetMembers[i].inputs()[0]
-            mesh2 = obj2.dagSetMembers[i].inputs()[0]
-            mesh_comp, mesh_reasons = meshesCompatible(mesh1, mesh2,
-                    feedback=True)
-            if not mesh_comp:
-                flag = False
-                if feedback:
-                    if not reasons.get('unmatched', None):
-                        reasons[ 'unmatched' ] = {}
-                    reasons['unmatched'][i] = (
-                            removeNamespaceFromPathName(mesh1),
-                            removeNamespaceFromPathName(mesh2), mesh_reasons)
-        except IndexError:
-            pass
-        except TypeError as e:
-            import traceback
-            traceback.print_exc()
-            flag = False
-            if feedback:
-                if not reasons.get('errors', None):
-                    reasons[ 'errors' ] = []
-                reasons['errors'].append(('TypeError', str(e)))
-
-    if feedback:
-        return flag, reasons
-    return flag
-
-geo_sets_compatible = setsCompatible
-
-def geo_set_valid(obj1):
-    '''  '''
-    obj1 = pc.nt.ObjectSet(obj1)
-    if 'geo_set' not in obj1.name().lower():
-        return False
-    for i in range(len(obj1)):
-        try:
-            member = obj1.dagSetMembers[i].inputs()[0]
-            mesh = member.getShape(type='mesh', ni=True)
-        except:
-            return False
-        if not mesh or not mesh.numVertices():
-            return False
-    return True
-
-def get_geo_sets(nonReferencedOnly=False, validOnly=False):
-    geosets = []
-    for node in pc.ls(exactType='objectSet'):
-        if 'geo_set' in node.name().lower() and (not nonReferencedOnly or
-                not node.isReferenced()) and (not validOnly or
-                        geo_set_valid(node) ):
-            geosets.append(node)
-    return geosets
-
-def getGeoSets():
-    '''return only valid geo sets'''
-    try:
-        return [s for s in pc.ls(exactType=pc.nt.ObjectSet) if
-                s.name().lower().endswith('_geo_set') and geo_set_valid(s)]
-    except IndexError:
-        pass
-
-def referenceExists(path):
-    # get the existing references
-    exists = cmds.file(r = True, q = True)
-    exists = [util.normpath(x) for x in exists]
-    path = util.normpath(path)
-    if path in exists: return True
 
 def export(filename, filepath, selection = True, pr = True,
            *args, **kwargs):
@@ -521,17 +284,6 @@ def extractShadersAndSave(filename, filepath, selection = True):
     '''
     pass
 
-def get_reference_paths():
-    '''
-    Query all the top-level reference nodes in a file or in the currently open scene
-    @return: {refNode: path} of all level one scene references
-    '''
-    refs = {}
-    for ref in pc.listReferences():
-        refs[ref] = str(ref.path)
-    return refs
-
-referenceInfo = get_reference_paths
 def objSetDiff(new, cur):
 
     # curSg.union([pc.PyNode(obj) for obj in cur])
@@ -541,102 +293,6 @@ def objSetDiff(new, cur):
     newSgs = set([str(obj) for obj in new])
     diff = newSgs.difference(curSgs)
     return [obj for obj in diff]
-
-def newScene(func = None):
-    '''
-    Make a bare scene.
-    '''
-    def wrapper(*arg, **kwarg):
-
-        if kwarg.get("newScene"):
-            pc.newFile(f=True)
-        else: pass
-        return func(*arg, **kwarg)
-    return wrapper if func else pc.newFile(f=True)
-
-def newcomerObjs(func):
-    '''
-    @return: the list of objects that were added to the scene
-    after calling func
-    '''
-    def wrapper(*arg, **kwarg):
-        selection = cmds.ls(sl = True)
-        cur = cmds.ls()
-        func(*arg, **kwarg)
-        new = objSetDiff(cmds.ls(), cur)
-        pc.select(selection)
-        return new
-    return wrapper
-
-@newScene
-@newcomerObjs
-def addReference(paths=[], dup = True, stripVersionInNamespace=True, *arg, **kwarg):
-    '''
-    adds reference to the component at 'path' (str)
-    @params:
-            path: valid path to the asset dir (str)
-            component: (Rig, Model, Shaded Model) (str)
-            dup: allow duplicate referencing
-    '''
-    for path in paths:
-        namespace = os.path.basename(path)
-        namespace = os.path.splitext(namespace)[0]
-        if stripVersionInNamespace:
-            # version part of the string is recognized as .v001
-            match = re.match('(.*)([-._]v\d+)(.*)', namespace)
-            if match:
-                namespace = match.group(1) + match.group(3)
-        cmds.file(path, r=True,
-                mnc=False, namespace=namespace)
-
-def createReference(path, stripVersionInNamespace=True):
-    if not path or not op.exists(path):
-        return None
-    before = pc.listReferences()
-    namespace = op.basename(path)
-    namespace = op.splitext(namespace)[0]
-    if stripVersionInNamespace:
-        # version part of the string is recognized as .v001
-        match = re.match('(.*)([-._]v\d+)(.*)', namespace)
-        if match:
-            namespace = match.group(1) + match.group(3)
-    pc.createReference(path, namespace=namespace, mnc=False)
-    after = pc.listReferences()
-    new = [ref for ref in after if ref not in before and not
-            ref.refNode.isReferenced()]
-    return new[0]
-
-def removeAllReferences():
-    refNodes = pc.ls(type=pc.nt.Reference)
-    refs = []
-    for node in refNodes:
-        if not node.referenceFile():
-            continue
-        try: refs.append(pc.FileReference(node))
-        except: pass
-
-    while refs:
-        try:
-            ref = refs.pop()
-            if ref.parent() is None:
-                removeReference(ref)
-            else:
-                refs.insert(0, ref)
-        except Exception as e:
-            print 'Error removing reference: ', str(e)
-
-
-def removeReference(ref):
-    ''':type ref: pymel.core.system.FileReference()'''
-    if ref:
-        ref.removeReferenceEdits()
-        ref.remove()
-
-def find_geo_set_in_ref(ref, key=lambda node: 'geo_set' in node.name().lower()):
-    for node in ref.nodes():
-        if pc.nodeType(node) == 'objectSet':
-            if key(node):
-                return node
 
 @newScene
 @newcomerObjs
@@ -666,10 +322,6 @@ def createComponentChecks():
     # Doesn't belong here. Should be purged.
     return any((util.localPath(path, conf.local_drives) for path in referenceInfo().values()))
 
-def getFileNodes(selection = False, rn = False):
-
-    return pc.ls(type = 'file', sl = selection, rn = rn)
-
 def getShadingFileNodes(selection):
     return [fileNode for obj in cmds.ls(sl = selection,
                                       rn = False)
@@ -687,15 +339,6 @@ def imageInRenderView():
     pc.setAttr('defaultRenderGlobals.imageFormat', ff)
     return render[1]
 
-def renameFileNodePath(mapping):
-    if not mapping:
-        return False # an exception should (idly) be raise
-    else:
-        for fileNode in pc.ls(type= "file"):
-            for path in mapping:
-                if util.normpath(pc.getAttr(fileNode + ".ftn")) == util.normpath(path):
-                    pc.setAttr(fileNode + ".ftn", mapping[path])
-
 def getShadingEngineHistoryChain(shader):
     chain = []
     sets = cmds.sets( str( shader ), q = True )
@@ -708,220 +351,6 @@ def getShadingEngineHistoryChain(shader):
             and ((not x in sets) if sets else True)
             and not isinstance(x, pc.nt.GroupId)])
     return chain + [shader]
-
-class SetDict(dict):
-    ''' A type of dictionary which can only have sets as its values and update
-    performs union on sets
-    '''
-    def __getitem__(self, key):
-        if not self.has_key(key):
-            self[key]=set()
-        return super(SetDict, self).__getitem__(key)
-
-    def __setitem__(self, key, val):
-        if not isinstance(val, set):
-            raise TypeError, 'value must be a set'
-        super(SetDict, self).__setitem__(key, val)
-
-    def get(self, key, *args, **kwargs):
-        return self.__getitem__(key)
-
-    def update(self, d):
-        if not isinstance(d, SetDict):
-            raise TypeError, "update argument must be a setDict"
-        for k, v in d.iteritems():
-            self[k].update(v)
-
-
-uvTilingModes = ['None', 'zbrush', 'mudbox', 'mari', 'explicit']
-def textureFiles(selection = True, key = lambda x: True, getTxFiles=True,
-        returnAsDict=False):
-    '''
-    @key: filter the tex with it
-    :rtype setDict:
-    '''
-    ftn_to_texs = SetDict()
-    fileNodes = getFileNodes(selection)
-
-    for fn in fileNodes:
-        texs = getTexturesFromFileNode(fn, key=key, getTxFiles=True)
-        ftn_to_texs.update(texs)
-
-    if returnAsDict:
-        return ftn_to_texs
-    else:
-        return list(reduce(lambda a,b: a.union(b), ftn_to_texs.values(), set()))
-
-def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
-        getTexFiles=True):
-    ''' Given a Node of type file, get all the paths and texture files
-    :type fn: pc.nt.File
-    '''
-    if not isinstance(fn, pc.nt.File):
-        if not pc.nodeType == 'file':
-            raise TypeError, '%s is not a file node' % fn
-
-    texs = SetDict()
-
-    filepath = readPathAttr(fn + '.ftn')
-    uvTilingMode = uvTilingModes[0]
-
-    # New in Maya 2015
-    if pc.attributeQuery('uvTilingMode', node=fn, exists=True):
-        uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
-
-    # still attempt to resolve using tokens in string
-    if uvTilingMode == 'None':
-        uvTilingMode = str(util.detectUdim(filepath))
-    elif not uvTilingMode == 'explicit':
-        filepath = readPathAttr(fn + '.cfnp')
-
-    # definitely no udim
-    if uvTilingMode == 'None':
-        if key(filepath) and op.exists(filepath) and op.isfile(filepath):
-            texs[filepath].add(filepath)
-        if pc.getAttr(fn + '.useFrameExtension'):
-            seqTex = util.getSequenceFiles(filepath)
-            if seqTex:
-                texs[filepath].update(seqTex)
-
-    # explicit naming
-    elif uvTilingMode == 'explicit':
-        if key(filepath) and op.exists(filepath) and op.isfile(filepath):
-            texs[filepath].add(filepath)
-        indices = pc.getAttr(fn + '.euvt', mi=True)
-        for index in indices:
-            filepath = readPathAttr(fn + '.euvt[%d].eutn'%index)
-            if key(filepath) and op.exists(filepath) and op.isfile(filepath):
-                texs[filepath].add(filepath)
-
-    else: # 'mari', 'zbrush', 'mudbox'
-        texs[filepath].update( util.getUVTiles( filepath, uvTilingMode ))
-
-    if getTxFiles:
-        for k, files in texs.iteritems():
-            texs[k].update(filter(None,
-                [util.getFileByExtension(f) for f in files]))
-
-    if getTexFiles:
-        for k, files in texs.iteritems():
-            texs[k].update(filter(None,
-                [util.getFileByExtension(f, ext='tex') for f in files]))
-
-    return texs
-
-def getFullpathFromAttr(attr):
-    ''' get full path from attr
-    :type attr: pymel.core.general.Attribute
-    '''
-    node = pc.PyNode(attr).node()
-    val = node.cfnp.get()
-    #if '<f>.' not in val: val = node.ftn.get()
-    return val
-
-def readPathAttr(attr):
-    '''the original function to be called from some functions this module
-    returns fullpath according to the current workspace'''
-    val = pc.getAttr(unicode( attr ))
-    val = pc.workspace.expandName(val)
-    val = op.abspath(val)
-    return op.normpath(val)
-
-def remapFileNode(fn, mapping):
-    ''' Update file node with given mapping
-    '''
-    if not isinstance(fn, pc.nt.File):
-        if not pc.nodeType == 'file':
-            raise TypeError, '%s is not a file node' % fn
-
-    reverse = []
-    uvTilingMode = uvTilingModes[0]
-    if pc.attributeQuery('uvTilingMode', node=fn, exists=True):
-        uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
-
-    if uvTilingMode == 'None' or uvTilingMode == 'explicit':
-        path = readPathAttr(fn + '.ftn')
-        if mapping.has_key(path):
-            pc.setAttr(fn + '.ftn', mapping[path])
-            reverse.append((mapping[path], path))
-
-    if uvTilingMode == 'explicit':
-        reverse = []
-        indices = pc.getAttr(fn + '.euvt', mi=True)
-        for index in indices:
-            path = readPathAttr(fn + '.euvt[%d].eutn'%index)
-            if mapping.has_key(path):
-                pc.setAttr(fn + '.euvt[%d].eutn'%index, mapping[path])
-                reverse.append((mapping[path], path))
-
-    elif uvTilingMode in uvTilingModes[1:4]:
-        path = readPathAttr(fn + '.cfnp')
-        if mapping.has_key(path):
-            pc.setAttr(fn + '.ftn', mapping[path])
-            reverse.append( (mapping[path], path) )
-
-    return reverse
-
-def map_textures(mapping):
-    reverse = {}
-
-    for fileNode in getFileNodes():
-        for k, v in remapFileNode(fileNode, mapping):
-            reverse[k]=v
-
-    return reverse
-
-def texture_mapping(newdir, olddir=None, scene_textures=None):
-    ''' Calculate a texture mapping dictionary
-    :newdir: the path where the textures should be mapped to
-    :olddir: the path from where the textures should be mapped from, if an
-    argument is not provided then all are mapped to this directory
-    :scene_textures: operate only on this dictionary, if an argument is not
-    provided all scene textures are mapped
-    :return: dictionary with all the mappings
-    '''
-    if not scene_textures:
-        scene_textures = textureFiles(selection=False, returnAsDict=True)
-
-    mapping = {}
-
-    for ftn, texs in scene_textures.items():
-        alltexs = [ftn] + list(texs)
-        for tex in alltexs:
-            tex_dir, tex_base = os.path.split(tex)
-            if olddir is None or util.paths_equal(tex_dir, olddir):
-                mapping[tex] = os.path.join(newdir, tex_base)
-
-    return mapping
-
-def collect_textures(dest, scene_textures=None):
-    '''
-    Collect all scene texturefiles to a flat hierarchy in a single directory while resolving
-    nameclashes
-
-    @return: {ftn: tmp}
-    '''
-
-    # normalized -> temp
-    mapping = {}
-    if not op.exists(dest):
-        return mapping
-
-    if not scene_textures:
-        scene_textures = textureFiles(selection = False, key = op.exists,
-                returnAsDict=True)
-
-    for myftn in scene_textures:
-        if mapping.has_key(myftn):
-            continue
-        ftns, texs = util.find_related_ftns(myftn, scene_textures.copy())
-        newmappings=util.lCUFTN(dest, ftns, texs)
-        for fl, copy_to in newmappings.items():
-            if op.exists(fl):
-                shutil.copy(fl, copy_to)
-        mapping.update(newmappings)
-
-    return mapping
 
 def _rendShader(shaderPath,
                renderImagePath,
@@ -1102,34 +531,6 @@ def addShadersToBin(binName, paths = [], new = True):
             for sg in objFilter(pc.nt.ShadingEngine,
                                 importScene(paths = [path], new = False)):
                 pc.Mel.eval('hyperShadeAddNodeAndUpstreamNodesToBin("%s", "%s")'%(thisBin, str(sg)))
-
-def createFileNodes(paths=[]):
-    for path in paths:
-        if op.exists(path):
-            # createNodes and setAttrs
-            fileNode = pc.shadingNode('file', asTexture=True)
-            pc.setAttr(str(fileNode)+".ftn", path)
-            placeNode = pc.shadingNode('place2dTexture', asUtility=True)
-
-            # default connect placeNode and fileNode
-            placeNode.coverage >> fileNode.coverage
-            placeNode.translateFrame >> fileNode.translateFrame
-            placeNode.rotateFrame >> fileNode.rotateFrame
-            placeNode.mirrorU >> fileNode.mirrorU
-            placeNode.mirrorV >> fileNode.mirrorV
-            placeNode.stagger >> fileNode.stagger
-            placeNode.wrapU >> fileNode.wrapU
-            placeNode.wrapV >> fileNode.wrapV
-            placeNode.repeatUV >> fileNode.repeatUV
-            placeNode.offset >> fileNode.offset
-            placeNode.rotateUV >> fileNode.rotateUV
-            placeNode.noiseUV >> fileNode.noiseUV
-            placeNode.vertexUvOne >> fileNode.vertexUvOne
-            placeNode.vertexUvTwo >> fileNode.vertexUvTwo
-            placeNode.vertexUvThree >> fileNode.vertexUvThree
-            placeNode.vertexCameraOne >> fileNode.vertexCameraOne
-            placeNode.outUV >> fileNode.uv
-            placeNode.outUvFilterSize >> fileNode.uvFilterSize
 
 def applyShaderToSelection(path):
     '''
@@ -1428,18 +829,6 @@ def getRenderPassNames(enabledOnly=True, nonReferencedOnly=True):
 
     else:
         return []
-
-frameno_re = re.compile(r'\d+')
-def removeLastNumber(path, bychar='?'):
-    dirname, basename = op.split(path)
-    numbers = frameno_re.findall(basename)
-    if numbers:
-        pos = basename.rfind(numbers[-1])
-        basename = basename[:pos] + basename[pos:].replace(numbers[-1], bychar
-                * len(numbers[-1]))
-        path = op.normpath( op.join(dirname, basename) )
-        return path, numbers[-1]
-    return path, ''
 
 def replaceTokens(tokens, path):
     for key, value in tokens.items():
