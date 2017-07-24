@@ -124,11 +124,10 @@ def rename_scene(name):
     cmds.file(rename=name)
 
 
-@newScene
 @newcomerObjs
 def importScene(paths=[], *arg, **kwarg):
-    '''
-    imports the paths
+    ''' imports the paths
+
     @params:
             path: path to component (list)
     '''

@@ -15,7 +15,7 @@ try:
 except:
     pass
 
-import iutils as util
+import iutil as util
 
 from .references import referenceInfo
 from .files import export, importScene, get_file_path
@@ -194,15 +194,6 @@ def deleteCache(mesh=None):
             pc.mel.eval('deleteCacheFile 3 { "keep", "", "geometry" } ;')
     except Exception as ex:
         pc.warning(str(ex))
-
-
-def removeNamespaceFromName(obj):
-    splits = obj.split(':')
-    return ':'.join(splits[1:-1] + [splits[-1]])
-
-
-def removeNamespaceFromPathName(path):
-    return '|'.join([removeNamespaceFromName(x) for x in path.split('|')])
 
 
 def removeOptionVar(key, index=None):

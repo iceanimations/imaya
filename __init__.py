@@ -1,25 +1,26 @@
-import utils
-import textures
-import geosets
-import references
-import exceptions
-import files
-import iMaya
 
-reload(iMaya)
+from . import utils
+from . import textures
+from . import geosets
+from . import references
+from . import exceptions
+from . import files
+from . import iMaya
+
 reload(utils)
 reload(references)
 reload(textures)
 reload(geosets)
 reload(exceptions)
 reload(files)
+reload(iMaya)
 
-from .textures import *
-from .geosets import *
-from .references import *
-from .exceptions import *
 from .utils import *
 from .files import *
+from .references import *
+from .geosets import *
+from .textures import *
+from .exceptions import *
 from .iMaya import *
 
 try:

@@ -113,3 +113,14 @@ def isNodeType(node, typ=None):
 
 
 isMesh = functools.partial(isNodeType, typ=pc.nt.Mesh)
+
+
+def removeNamespaceFromName(obj):
+    splits = obj.split(':')
+    return ':'.join(splits[1:-1] + [splits[-1]])
+
+
+def removeNamespaceFromPathName(path):
+    return '|'.join([removeNamespaceFromName(x) for x in path.split('|')])
+
+
