@@ -3,7 +3,7 @@ import os
 import pymel.core as pc
 import maya.cmds as cmds
 
-from .utils import newScence, newcomerObjs
+from .utils import newScene, newcomerObjs
 
 def getReferences(loaded=False, unloaded=False):
     refs = []

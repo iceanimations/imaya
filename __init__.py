@@ -2,12 +2,15 @@ import iMaya
 reload(iMaya)
 def setConfig(conf):
     iMaya.conf = conf
+
 from iMaya import *
 try:
     import pymel.core as pc
-except: pass
+except:
+    pass
 
-doCreateGeometryCache2 =r'''global proc string[] doCreateGeometryCache2 ( int $version, string $args[] )
+doCreateGeometryCache2 = r'''
+global proc string[] doCreateGeometryCache2 ( int $version, string $args[] )
 //A facsimle copy of doCreateGeometryCache just that args[6] i.e. export cache
 //per geometry is fixed to 1 regardless of group caching
 {
@@ -317,6 +320,8 @@ doCreateGeometryCache2 =r'''global proc string[] doCreateGeometryCache2 ( int $v
         select -r $objsToCache;
         return $cacheFiles;
 };'''
+
 try:
     pc.Mel.eval(doCreateGeometryCache2)
-except: pass
+except:
+    pass

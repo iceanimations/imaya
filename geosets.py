@@ -1,10 +1,6 @@
 import pymel.core as pc
 
-
-from . import references
-reload(references)
 from .references import getReferences
-
 
 def getRefFromSet(geoset):
     for ref in getReferences(loaded=True):
