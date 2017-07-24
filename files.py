@@ -6,6 +6,9 @@ import traceback
 import os.path as op
 import os
 
+from .utils import newScene, newcomerObjs
+from .references import referenceExists
+
 
 class FileInfo(object):
 
@@ -119,3 +122,23 @@ def get_file_path():
 
 def rename_scene(name):
     cmds.file(rename=name)
+
+
+@newScene
+@newcomerObjs
+def importScene(paths=[], *arg, **kwarg):
+    '''
+    imports the paths
+    @params:
+            path: path to component (list)
+    '''
+
+    for path in paths:
+        if referenceExists(path):
+            cmds.file(path, importReference=True)
+        # create reference
+        else:
+            try:
+                cmds.file(path, i=True)
+            except RuntimeError:
+                pc.error('File not found.')

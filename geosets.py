@@ -1,6 +1,10 @@
+import random
+
 import pymel.core as pc
 
 from .references import getReferences
+from .utils import getNiceName, isMesh, removeNamespaceFromPathName
+
 
 def getRefFromSet(geoset):
     for ref in getReferences(loaded=True):
@@ -12,37 +16,42 @@ def getMeshFromSet(ref):
     meshes = []
     if ref:
         try:
-            _set = [obj for obj in ref.nodes() if 'geo_set' in obj.name()
-                    and type(obj)==pc.nt.ObjectSet ][0]
-            meshes = [shape
-                    for transform in pc.PyNode(_set).dsm.inputs(type="transform")
-                    for shape in transform.getShapes(type = "mesh", ni = True)]
-            #return [pc.polyUnite(ch=1, mergeUVSets=1, *_set.members())[0]] # put the first element in list and return
+            _set = [obj for obj in ref.nodes() if 'geo_set' in obj.name() and
+                    type(obj) == pc.nt.ObjectSet][0]
+            meshes = [
+                    shape
+                    for transform in
+                    pc.PyNode(_set).dsm.inputs(type="transform")
+                    for shape in transform.getShapes(type="mesh", ni=True)]
             combinedMesh = pc.polyUnite(ch=1, mergeUVSets=1, *meshes)[0]
             combinedMesh.rename(getNiceName(_set) + '_combinedMesh')
-            return [combinedMesh] # put the first element in list and return
+            return [combinedMesh]  # put the first element in list and return
         except:
             return meshes
     return meshes
 
 
 def getCombinedMeshFromSet(_set, midfix='shaded'):
-    meshes = [shape for transform in _set.dsm.inputs() for shape in transform.getShapes(ni=True, type='mesh')]
-    if not meshes: return
+    meshes = [shape for transform in _set.dsm.inputs() for shape in
+              transform.getShapes(ni=True, type='mesh')]
+    if not meshes:
+        return
     pc.select(meshes)
-    meshName =_set.name().replace('_geo_', '_' + midfix + '_').replace('_set',
-            '_combined')
+    meshName = _set.name().replace('_geo_', '_' + midfix + '_').replace(
+            '_set', '_combined')
     if len(meshes) == 1:
         mesh = pc.duplicate(ic=True, name=meshName)[0]
         pc.parent(mesh, w=True)
         meshes[0].io.set(True)
         trash = [child for child in mesh.getChildren() if child !=
-                mesh.getShape(type='mesh', ni=True)]
+                 mesh.getShape(type='mesh', ni=True)]
         pc.delete(trash)
     else:
         mesh = pc.polyUnite(ch=1, mergeUVSets=1, name=meshName)[0]
-    try: pc.delete(_set)
-    except: pass
+    try:
+        pc.delete(_set)
+    except:
+        pass
     return mesh
 
 
@@ -51,36 +60,40 @@ def meshesCompatible(mesh1, mesh2, max_tries=100, feedback=False):
     status = True
 
     if not isMesh(mesh1):
-        raise TypeError (
+        raise TypeError(
                 'Object %r is not an instance of pymel.core.nodetypes.Mesh' % (
-                    mesh1 ) )
+                    mesh1))
     if not isMesh(mesh2):
-        raise TypeError (
+        raise TypeError(
                 'Object %r is not an instance of pymel.core.nodetypes.Mesh' % (
-                    mesh2 ) )
+                    mesh2))
 
     faces = pc.polyEvaluate(mesh1, f=True), pc.polyEvaluate(mesh2, f=True)
     vertices = pc.polyEvaluate(mesh1, v=True), pc.polyEvaluate(mesh2, v=True)
     edges = pc.polyEvaluate(mesh1, e=True), pc.polyEvaluate(mesh2, e=True)
 
     if faces[0] != faces[1]:
-        if feedback: reasons['faces']=faces
+        if feedback:
+            reasons['faces'] = faces
         status = False
     if vertices[0] != vertices[1]:
-        if feedback: reasons['vertices'] = vertices
+        if feedback:
+            reasons['vertices'] = vertices
         status = False
     if edges[0] != edges[1]:
-        if feedback: reasons['edges'] = edges
+        if feedback:
+            reasons['edges'] = edges
         status = False
 
     if status:
         for i in range(min(len(mesh2.vtx), max_tries)):
-            v = random.choice( mesh1.vtx.indices() )
-            connEdges = ( mesh1.vtx[v].numConnectedEdges(),
-                    mesh2.vtx[v].numConnectedEdges()  )
+            v = random.choice(mesh1.vtx.indices())
+            connEdges = (mesh1.vtx[v].numConnectedEdges(),
+                         mesh2.vtx[v].numConnectedEdges())
             if connEdges[0] != connEdges[1]:
                 status = False
-                if feedback: reasons['vertexOrder'] = (v, connEdges)
+                if feedback:
+                    reasons['vertexOrder'] = (v, connEdges)
                 break
 
     if feedback:
@@ -96,10 +109,10 @@ def setsCompatible(obj1, obj2, feedback=False):
     reasons = {}
     if type(obj1) != pc.nt.ObjectSet:
         raise TypeError(
-                "Object %r is not an instance of pc.nt.ObjectSet"%( obj1 ))
+                "Object %r is not an instance of pc.nt.ObjectSet" % (obj1))
     if type(obj2) != pc.nt.ObjectSet:
         raise TypeError(
-                "Object %r is not an instance of pc.nt.ObjectSet"%( obj2 ))
+                "Object %r is not an instance of pc.nt.ObjectSet" % (obj2))
     flag = True
 
     len1 = len(obj1)
@@ -122,26 +135,26 @@ def setsCompatible(obj1, obj2, feedback=False):
         try:
             mesh1 = obj1.dagSetMembers[i].inputs()[0]
             mesh2 = obj2.dagSetMembers[i].inputs()[0]
-            mesh_comp, mesh_reasons = meshesCompatible(mesh1, mesh2,
-                    feedback=True)
+            mesh_comp, mesh_reasons = meshesCompatible(mesh1,
+                                                       mesh2, feedback=True)
             if not mesh_comp:
                 flag = False
                 if feedback:
                     if not reasons.get('unmatched', None):
-                        reasons[ 'unmatched' ] = {}
+                        reasons['unmatched'] = {}
                     reasons['unmatched'][i] = (
                             removeNamespaceFromPathName(mesh1),
                             removeNamespaceFromPathName(mesh2), mesh_reasons)
         except IndexError:
             pass
-        except TypeError as e:
+        except TypeError as exc:
             import traceback
             traceback.print_exc()
             flag = False
             if feedback:
                 if not reasons.get('errors', None):
-                    reasons[ 'errors' ] = []
-                reasons['errors'].append(('TypeError', str(e)))
+                    reasons['errors'] = []
+                reasons['errors'].append(('TypeError', str(exc)))
 
     if feedback:
         return flag, reasons
@@ -169,9 +182,9 @@ def geo_set_valid(obj1):
 def get_geo_sets(nonReferencedOnly=False, validOnly=False):
     geosets = []
     for node in pc.ls(exactType='objectSet'):
-        if 'geo_set' in node.name().lower() and (not nonReferencedOnly or
-                not node.isReferenced()) and (not validOnly or
-                        geo_set_valid(node) ):
+        if ('geo_set' in node.name().lower() and
+                (not nonReferencedOnly or not node.isReferenced()) and
+                (not validOnly or geo_set_valid(node))):
             geosets.append(node)
     return geosets
 
@@ -185,9 +198,9 @@ def getGeoSets():
         pass
 
 
-def find_geo_set_in_ref(ref, key=lambda node: 'geo_set' in node.name().lower()):
+def find_geo_set_in_ref(ref,
+                        key=lambda node: 'geo_set' in node.name().lower()):
     for node in ref.nodes():
         if pc.nodeType(node) == 'objectSet':
             if key(node):
                 return node
-

@@ -3,6 +3,8 @@ import pymel.core as pc
 import maya.cmds as cmds
 import os.path as op
 
+import functools
+
 
 def objSetDiff(new, cur):
     # curSg.union([pc.PyNode(obj) for obj in cur])
@@ -101,3 +103,13 @@ def removeNamespace(obj=None):
     ns = ':'.join(nameParts[0:-1]) + ':'
     pc.namespace(mergeNamespaceWithRoot=True, removeNamespace=ns)
 
+
+def isNodeType(node, typ=None):
+    if typ is None:
+        typ = pc.nt.Transform
+    if typ != pc.nt.Transform and isinstance(node, pc.nt.Transform):
+        node = node.getShape(ni=True)
+    return isinstance(node, typ)
+
+
+isMesh = functools.partial(isNodeType, typ=pc.nt.Mesh)

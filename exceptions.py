@@ -4,8 +4,10 @@ class ExportError(Exception):
     '''
     def __init__(self, *arg, **kwarg):
         self.code = 0
-        self.error = "Export failed. Some error occured while exporting maya scene."
-        self.value = kwarg.get("obj","")
+        self.error = (
+                "Export failed. Some error occured while exporting maya scene."
+                )
+        self.value = kwarg.get("obj", "")
         self.strerror = self.__str__()
 
     def __str__(self):

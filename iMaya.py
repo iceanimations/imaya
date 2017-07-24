@@ -4,6 +4,10 @@ Main file for library iMaya
 
 import os
 import tempfile
+import traceback
+import re
+import subprocess
+from collections import OrderedDict
 
 try:
     import pymel.core as pc
@@ -11,37 +15,12 @@ try:
 except:
     pass
 
-import iutil as util
+import iutils as util
 
-import traceback
-import re
-import shutil
-import subprocess
-import random
-from collections import OrderedDict
-import functools
-import fillinout
-
-import utils
-import textures
-import geosets
-import references
-import exceptions
-import files
-
-reload(utils)
-reload(references)
-reload(textures)
-reload(geosets)
-reload(exceptions)
-reload(files)
-
-from .textures import *
-from .geosets import *
-from .references import *
-from .exceptions import *
-from .utils import *
-from .files import *
+from .references import referenceInfo
+from .files import export, importScene, get_file_path
+from .exceptions import ShaderApplicationError
+from .utils import removeLastNumber
 
 
 op = os.path
@@ -178,17 +157,6 @@ def switchToMasterLayer():
             break
 
 
-def isNodeType(node, typ=None):
-    if typ is None:
-        typ = pc.nt.Transform
-    if typ != pc.nt.Transform and isinstance(node, pc.nt.Transform):
-        node = node.getShape(ni=True)
-    return isinstance(node, typ)
-
-
-isMesh = functools.partial(isNodeType, typ=pc.nt.Mesh)
-
-
 def applyCache(node, xmlFilePath):
     '''
     applies cache to the given mesh or set
@@ -235,26 +203,6 @@ def removeNamespaceFromName(obj):
 
 def removeNamespaceFromPathName(path):
     return '|'.join([removeNamespaceFromName(x) for x in path.split('|')])
-
-
-@newScene
-@newcomerObjs
-def importScene(paths=[], *arg, **kwarg):
-    '''
-    imports the paths
-    @params:
-            path: path to component (list)
-    '''
-
-    for path in paths:
-        if referenceExists(path):
-            cmds.file(path, importReference=True)
-        # create reference
-        else:
-            try:
-                cmds.file(path, i=True)
-            except RuntimeError:
-                pc.error('File not found.')
 
 
 def removeOptionVar(key, index=None):
@@ -393,12 +341,12 @@ def snapshot(
         resolution=conf.presetGeo["resolution"],
         snapLocation=op.join(
             os.getenv("tmp"), str(int(util.randomNumber()*100000)))):
-    format = pc.getAttr("defaultRenderGlobals.imageFormat")
+    image_format = pc.getAttr("defaultRenderGlobals.imageFormat")
     pc.setAttr("defaultRenderGlobals.imageFormat", 8)
     pc.playblast(frame=pc.currentTime(q=True), format='image',
                  cf=snapLocation.replace('\\', '/'), orn=0, v=0, wh=resolution,
                  p=100, viewer=0, offScreen=1)
-    pc.setAttr("defaultRenderGlobals.imageFormat", format)
+    pc.setAttr("defaultRenderGlobals.imageFormat", image_format)
     return snapLocation
 
 

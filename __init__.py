@@ -1,13 +1,36 @@
+import utils
+import textures
+import geosets
+import references
+import exceptions
+import files
 import iMaya
-reload(iMaya)
-def setConfig(conf):
-    iMaya.conf = conf
 
-from iMaya import *
+reload(iMaya)
+reload(utils)
+reload(references)
+reload(textures)
+reload(geosets)
+reload(exceptions)
+reload(files)
+
+from .textures import *
+from .geosets import *
+from .references import *
+from .exceptions import *
+from .utils import *
+from .files import *
+from .iMaya import *
+
 try:
     import pymel.core as pc
 except:
     pass
+
+
+def setConfig(conf):
+    iMaya.conf = conf
+
 
 doCreateGeometryCache2 = r'''
 global proc string[] doCreateGeometryCache2 ( int $version, string $args[] )

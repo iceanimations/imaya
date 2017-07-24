@@ -1,9 +1,15 @@
+'''Contains all functions related to references'''
 import os
+import re
+import os.path as op
 
 import pymel.core as pc
 import maya.cmds as cmds
 
+import iutil as util
+
 from .utils import newScene, newcomerObjs
+
 
 def getReferences(loaded=False, unloaded=False):
     refs = []
@@ -16,6 +22,7 @@ def getReferences(loaded=False, unloaded=False):
         return [ref for ref in refs if not ref.isLoaded()]
     return refs
 
+
 def addRef(path):
     namespace = os.path.basename(path)
     namespace = os.path.splitext(namespace)[0]
@@ -23,6 +30,7 @@ def addRef(path):
     if match:
         namespace = match.group(1) + match.group(3)
     return pc.createReference(path, namespace=namespace, mnc=False)
+
 
 def getCombinedMesh(ref):
     '''returns the top level meshes from a reference node'''
@@ -36,20 +44,24 @@ def getCombinedMesh(ref):
                     if not node.isIntermediate():
                         meshes.append(node.firstParent())
                 except Exception as ex:
-                    #self.errorsList.append('Could not retrieve combined mesh for Reference\n'+ref.path+'\nReason: '+ str(ex))
-                    print 'Error: %r: %r'%(type(ex), ex)
+                    print 'Error: %r: %r' % (type(ex), ex)
     return meshes
+
 
 def referenceExists(path):
     # get the existing references
-    exists = cmds.file(r = True, q = True)
+    exists = cmds.file(r=True, q=True)
     exists = [util.normpath(x) for x in exists]
     path = util.normpath(path)
-    if path in exists: return True
+    if path in exists:
+        return True
+
 
 def get_reference_paths():
     '''
-    Query all the top-level reference nodes in a file or in the currently open scene
+    Query all the top-level reference nodes in a file or in the currently open
+    scene
+
     @return: {refNode: path} of all level one scene references
     '''
     refs = {}
@@ -59,11 +71,14 @@ def get_reference_paths():
 
 referenceInfo = get_reference_paths
 
+
 @newScene
 @newcomerObjs
-def addReference(paths=[], dup = True, stripVersionInNamespace=True, *arg, **kwarg):
+def addReference(paths=[], dup=True, stripVersionInNamespace=True, *arg,
+                 **kwarg):
     '''
     adds reference to the component at 'path' (str)
+
     @params:
             path: valid path to the asset dir (str)
             component: (Rig, Model, Shaded Model) (str)
@@ -77,8 +92,8 @@ def addReference(paths=[], dup = True, stripVersionInNamespace=True, *arg, **kwa
             match = re.match('(.*)([-._]v\d+)(.*)', namespace)
             if match:
                 namespace = match.group(1) + match.group(3)
-        cmds.file(path, r=True,
-                mnc=False, namespace=namespace)
+        cmds.file(path, r=True, mnc=False, namespace=namespace)
+
 
 def createReference(path, stripVersionInNamespace=True):
     if not path or not op.exists(path):
@@ -94,8 +109,9 @@ def createReference(path, stripVersionInNamespace=True):
     pc.createReference(path, namespace=namespace, mnc=False)
     after = pc.listReferences()
     new = [ref for ref in after if ref not in before and not
-            ref.refNode.isReferenced()]
+           ref.refNode.isReferenced()]
     return new[0]
+
 
 def removeAllReferences():
     refNodes = pc.ls(type=pc.nt.Reference)
@@ -103,8 +119,10 @@ def removeAllReferences():
     for node in refNodes:
         if not node.referenceFile():
             continue
-        try: refs.append(pc.FileReference(node))
-        except: pass
+        try:
+            refs.append(pc.FileReference(node))
+        except:
+            pass
 
     while refs:
         try:
@@ -122,4 +140,3 @@ def removeReference(ref):
     if ref:
         ref.removeReferenceEdits()
         ref.remove()
-

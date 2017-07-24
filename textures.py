@@ -1,4 +1,10 @@
+import os.path as op
+import os
+import shutil
+
 import pymel.core as pc
+
+import iutil as util
 
 
 class SetDict(dict):
@@ -12,7 +18,7 @@ class SetDict(dict):
 
     def __setitem__(self, key, val):
         if not isinstance(val, set):
-            raise TypeError, 'value must be a set'
+            raise TypeError('value must be a set')
         super(SetDict, self).__setitem__(key, val)
 
     def get(self, key, *args, **kwargs):
@@ -20,7 +26,7 @@ class SetDict(dict):
 
     def update(self, d):
         if not isinstance(d, SetDict):
-            raise TypeError, "update argument must be a setDict"
+            raise TypeError("update argument must be a setDict")
         for k, v in d.iteritems():
             self[k].update(v)
 
@@ -35,7 +41,8 @@ def renameFileNodePath(mapping):
     else:
         for fileNode in pc.ls(type="file"):
             for path in mapping:
-                if util.normpath(pc.getAttr(fileNode + ".ftn")) == util.normpath(path):
+                if util.normpath(
+                        pc.getAttr(fileNode + ".ftn")) == util.normpath(path):
                     pc.setAttr(fileNode + ".ftn", mapping[path])
 
 
@@ -43,7 +50,7 @@ uvTilingModes = ['None', 'zbrush', 'mudbox', 'mari', 'explicit']
 
 
 def textureFiles(selection=True, key=lambda x: True, getTxFiles=True,
-        returnAsDict=False):
+                 returnAsDict=False):
     '''
     @key: filter the tex with it
     :rtype setDict:
@@ -58,17 +65,19 @@ def textureFiles(selection=True, key=lambda x: True, getTxFiles=True,
     if returnAsDict:
         return ftn_to_texs
     else:
-        return list(reduce(lambda a,b: a.union(b), ftn_to_texs.values(), set()))
+        return list(reduce(lambda a, b: a.union(b), ftn_to_texs.values(),
+                           set()))
 
 
-def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
-        getTexFiles=True):
+def getTexturesFromFileNode(fn, key=lambda x: True, getTxFiles=True,
+                            getTexFiles=True):
     ''' Given a Node of type file, get all the paths and texture files
+
     :type fn: pc.nt.File
     '''
     if not isinstance(fn, pc.nt.File):
         if not pc.nodeType == 'file':
-            raise TypeError, '%s is not a file node' % fn
+            raise TypeError('%s is not a file node' % fn)
 
     texs = SetDict()
 
@@ -100,22 +109,23 @@ def getTexturesFromFileNode(fn, key=lambda x:True, getTxFiles=True,
             texs[filepath].add(filepath)
         indices = pc.getAttr(fn + '.euvt', mi=True)
         for index in indices:
-            filepath = readPathAttr(fn + '.euvt[%d].eutn'%index)
+            filepath = readPathAttr(fn + '.euvt[%d].eutn' % index)
             if key(filepath) and op.exists(filepath) and op.isfile(filepath):
                 texs[filepath].add(filepath)
 
-    else: # 'mari', 'zbrush', 'mudbox'
-        texs[filepath].update( util.getUVTiles( filepath, uvTilingMode ))
+    else:  # 'mari', 'zbrush', 'mudbox'
+        texs[filepath].update(util.getUVTiles(filepath, uvTilingMode))
 
     if getTxFiles:
         for k, files in texs.iteritems():
-            texs[k].update(filter(None,
-                [util.getFileByExtension(f) for f in files]))
+            texs[k].update(
+                    filter(None, [util.getFileByExtension(f) for f in files]))
 
     if getTexFiles:
         for k, files in texs.iteritems():
             texs[k].update(filter(None,
-                [util.getFileByExtension(f, ext='tex') for f in files]))
+                           [util.getFileByExtension(f, ext='tex')
+                            for f in files]))
 
     return texs
 
@@ -126,7 +136,7 @@ def getFullpathFromAttr(attr):
     '''
     node = pc.PyNode(attr).node()
     val = node.cfnp.get()
-    #if '<f>.' not in val: val = node.ftn.get()
+    # if '<f>.' not in val: val = node.ftn.get()
     return val
 
 
@@ -135,7 +145,7 @@ def remapFileNode(fn, mapping):
     '''
     if not isinstance(fn, pc.nt.File):
         if not pc.nodeType == 'file':
-            raise TypeError, '%s is not a file node' % fn
+            raise TypeError('%s is not a file node' % fn)
 
     reverse = []
     uvTilingMode = uvTilingModes[0]
@@ -144,7 +154,7 @@ def remapFileNode(fn, mapping):
 
     if uvTilingMode == 'None' or uvTilingMode == 'explicit':
         path = readPathAttr(fn + '.ftn')
-        if mapping.has_key(path):
+        if path in mapping:
             pc.setAttr(fn + '.ftn', mapping[path])
             reverse.append((mapping[path], path))
 
@@ -152,23 +162,24 @@ def remapFileNode(fn, mapping):
         reverse = []
         indices = pc.getAttr(fn + '.euvt', mi=True)
         for index in indices:
-            path = readPathAttr(fn + '.euvt[%d].eutn'%index)
-            if mapping.has_key(path):
-                pc.setAttr(fn + '.euvt[%d].eutn'%index, mapping[path])
+            path = readPathAttr(fn + '.euvt[%d].eutn' % index)
+            if path in mapping:
+                pc.setAttr(fn + '.euvt[%d].eutn' % index, mapping[path])
                 reverse.append((mapping[path], path))
 
     elif uvTilingMode in uvTilingModes[1:4]:
         path = readPathAttr(fn + '.cfnp')
-        if mapping.has_key(path):
+        if path in mapping:
             pc.setAttr(fn + '.ftn', mapping[path])
-            reverse.append( (mapping[path], path) )
+            reverse.append((mapping[path], path))
 
     return reverse
+
 
 def readPathAttr(attr):
     '''the original function to be called from some functions this module
     returns fullpath according to the current workspace'''
-    val = pc.getAttr(unicode( attr ))
+    val = pc.getAttr(unicode(attr))
     val = pc.workspace.expandName(val)
     val = op.abspath(val)
     return op.normpath(val)
@@ -198,34 +209,10 @@ def texture_mapping(newdir, olddir=None, scene_textures=None):
     return mapping
 
 
-def texture_mapping(newdir, olddir=None, scene_textures=None):
-    ''' Calculate a texture mapping dictionary
-    :newdir: the path where the textures should be mapped to
-    :olddir: the path from where the textures should be mapped from, if an
-    argument is not provided then all are mapped to this directory
-    :scene_textures: operate only on this dictionary, if an argument is not
-    provided all scene textures are mapped
-    :return: dictionary with all the mappings
-    '''
-    if not scene_textures:
-        scene_textures = textureFiles(selection=False, returnAsDict=True)
-
-    mapping = {}
-
-    for ftn, texs in scene_textures.items():
-        alltexs = [ftn] + list(texs)
-        for tex in alltexs:
-            tex_dir, tex_base = os.path.split(tex)
-            if olddir is None or util.paths_equal(tex_dir, olddir):
-                mapping[tex] = os.path.join(newdir, tex_base)
-
-    return mapping
-
-
 def collect_textures(dest, scene_textures=None):
     '''
-    Collect all scene texturefiles to a flat hierarchy in a single directory while resolving
-    nameclashes
+    Collect all scene texturefiles to a flat hierarchy in a single directory
+    while resolving nameclashes
 
     @return: {ftn: tmp}
     '''
@@ -236,108 +223,18 @@ def collect_textures(dest, scene_textures=None):
         return mapping
 
     if not scene_textures:
-        scene_textures = textureFiles(selection = False, key = op.exists,
-                returnAsDict=True)
+        scene_textures = textureFiles(selection=False, key=op.exists,
+                                      returnAsDict=True)
 
     for myftn in scene_textures:
-        if mapping.has_key(myftn):
+        if myftn in mapping:
             continue
         ftns, texs = util.find_related_ftns(myftn, scene_textures.copy())
-        newmappings=util.lCUFTN(dest, ftns, texs)
+        newmappings = util.lCUFTN(dest, ftns, texs)
         for fl, copy_to in newmappings.items():
             if op.exists(fl):
                 shutil.copy(fl, copy_to)
         mapping.update(newmappings)
-    return mapping
-
-
-def collect_textures(dest, scene_textures=None):
-    '''
-    Collect all scene texturefiles to a flat hierarchy in a single directory while resolving
-    nameclashes
-
-    @return: {ftn: tmp}
-    '''
-
-    # normalized -> temp
-    mapping = {}
-    if not op.exists(dest):
-        return mapping
-
-    if not scene_textures:
-        scene_textures = textureFiles(selection = False, key = op.exists,
-                returnAsDict=True)
-
-    for myftn in scene_textures:
-        if mapping.has_key(myftn):
-            continue
-        ftns, texs = util.find_related_ftns(myftn, scene_textures.copy())
-        newmappings=util.lCUFTN(dest, ftns, texs)
-        for fl, copy_to in newmappings.items():
-            if op.exists(fl):
-                shutil.copy(fl, copy_to)
-        mapping.update(newmappings)
-
-    return mapping
-
-
-def collect_textures(dest, scene_textures=None):
-    '''
-    Collect all scene texturefiles to a flat hierarchy in a single directory while resolving
-    nameclashes
-
-    @return: {ftn: tmp}
-    '''
-
-    # normalized -> temp
-    mapping = {}
-    if not op.exists(dest):
-        return mapping
-
-    if not scene_textures:
-        scene_textures = textureFiles(selection = False, key = op.exists,
-                returnAsDict=True)
-
-    for myftn in scene_textures:
-        if mapping.has_key(myftn):
-            continue
-        ftns, texs = util.find_related_ftns(myftn, scene_textures.copy())
-        newmappings=util.lCUFTN(dest, ftns, texs)
-        for fl, copy_to in newmappings.items():
-            if op.exists(fl):
-                shutil.copy(fl, copy_to)
-        mapping.update(newmappings)
-
-    return mapping
-
-
-def collect_textures(dest, scene_textures=None):
-    '''
-    Collect all scene texturefiles to a flat hierarchy in a single directory while resolving
-    nameclashes
-
-    @return: {ftn: tmp}
-    '''
-
-    # normalized -> temp
-    mapping = {}
-    if not op.exists(dest):
-        return mapping
-
-    if not scene_textures:
-        scene_textures = textureFiles(selection = False, key = op.exists,
-                returnAsDict=True)
-
-    for myftn in scene_textures:
-        if mapping.has_key(myftn):
-            continue
-        ftns, texs = util.find_related_ftns(myftn, scene_textures.copy())
-        newmappings=util.lCUFTN(dest, ftns, texs)
-        for fl, copy_to in newmappings.items():
-            if op.exists(fl):
-                shutil.copy(fl, copy_to)
-        mapping.update(newmappings)
-
     return mapping
 
 
@@ -375,7 +272,6 @@ def map_textures(mapping):
 
     for fileNode in getFileNodes():
         for k, v in remapFileNode(fileNode, mapping):
-            reverse[k]=v
+            reverse[k] = v
 
     return reverse
-
