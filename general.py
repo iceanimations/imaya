@@ -1,5 +1,5 @@
 '''
-Main file for library iMaya
+Some generic functions for imaya
 '''
 
 import os
@@ -921,8 +921,3 @@ def getFrameRange():
 
 def setCurrentRenderLayer(layer):
     pc.editRenderLayerGlobals(crl=layer)
-
-# if __name__ == "__main__":
-    # for _ in xrange(1):
-    # snapshot()
-    # print "loaded"

@@ -5,7 +5,7 @@ from . import geosets
 from . import references
 from . import exceptions
 from . import files
-from . import iMaya
+from . import general
 
 reload(utils)
 reload(references)
@@ -13,7 +13,7 @@ reload(textures)
 reload(geosets)
 reload(exceptions)
 reload(files)
-reload(iMaya)
+reload(general)
 
 from .utils import *
 from .files import *
@@ -21,7 +21,7 @@ from .references import *
 from .geosets import *
 from .textures import *
 from .exceptions import *
-from .iMaya import *
+from .general import *
 
 try:
     import pymel.core as pc
@@ -30,7 +30,7 @@ except:
 
 
 def setConfig(conf):
-    iMaya.conf = conf
+    general.conf = conf
 
 
 doCreateGeometryCache2 = r'''
