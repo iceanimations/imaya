@@ -5,7 +5,11 @@ import pymel.core as pc
 
 import iutil as util
 
-from .base import TextureNode, SetDict
+from .setdict import *
+from .base import *
+from .utils import *
+from .mapper import *
+from .file_node import *
 
 
 def getFileNodes(selection=False, rn=False):
@@ -42,8 +46,7 @@ def textureFiles(selection=True, key=lambda x: True, getTxFiles=True,
     if returnAsDict:
         return ftn_to_texs
     else:
-        return list(reduce(lambda a, b: a.union(b), ftn_to_texs.values(),
-                           set()))
+        return list(ftn_to_texs.reduced())
 
 
 def getTexturesFromFileNode(fn, key=lambda x: True, getTxFiles=True,
@@ -151,15 +154,6 @@ def remapFileNode(fn, mapping):
             reverse.append((mapping[path], path))
 
     return reverse
-
-
-def readPathAttr(attr):
-    '''the original function to be called from some functions this module
-    returns fullpath according to the current workspace'''
-    val = pc.getAttr(unicode(attr))
-    val = pc.workspace.expandName(val)
-    val = op.abspath(val)
-    return op.normpath(val)
 
 
 def texture_mapping(newdir, olddir=None, scene_textures=None):

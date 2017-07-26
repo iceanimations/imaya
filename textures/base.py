@@ -1,78 +1,99 @@
 ''' Contains the base class for texture nodes '''
 
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractproperty, abstractmethod
+import pymel.core as pc
+
+
+from .setdict import SetDict
+from .utils import expandPath
 
 __all__ = ['TextureNode']
 
 
-class SetDict(dict):
-    ''' A type of dictionary which can only have sets as its values and update
-    performs union on sets
-    '''
-    def __init__(self, *args, **kwargs):
-        super(SetDict, self).__init__(*args, **kwargs)
-        for k, v in self.iteritems():
-            if not isinstance(v, set):
-                self[k] = set(v)
-
-    def __getitem__(self, key):
-        if key not in self:
-            self[key] = set()
-        return super(SetDict, self).__getitem__(key)
-
-    def __setitem__(self, key, val):
-        if not isinstance(val, set):
-            raise TypeError('value must be a set')
-        super(SetDict, self).__setitem__(key, val)
-
-    def get(self, key, *args, **kwargs):
-        return self.__getitem__(key)
-
-    def update(self, d):
-        if not isinstance(d, SetDict):
-            raise TypeError("update argument must be a SetDict")
-        for k, v in d.iteritems():
-            self[k].update(v)
-
-    def reduced(self):
-        '''returns a set which is a union union of all values'''
-        return reduce(lambda a, b: a.union(b), self.values(), set())
-
-
 class TextureNode(object):
     ''' Base class for different types of texture nodes '''
+
     __metaclass__ = ABCMeta
     __subc__ = []
-    node = None
-    nodeType = None
+
+    @abstractproperty
+    def nodeType(self):
+        pass
+
+    @abstractproperty
+    def pathReadAttr(self):
+        pass
+
+    @abstractproperty
+    def pathWriteAttr(self):
+        pass
+
+    @property
+    def node(self):
+        return self._node
+
+    def getAuxFiles(self, path):
+        return []
+
+    def __init__(self, node):
+        node = pc.nt.PyNode(node)
+        if node.nodeType() != self.nodeType:
+            raise TypeError('node should be of type %s' % self.nodeType)
+        self._node = pc.nt.PyNode(node)
+
+    @classmethod
+    def create(cls):
+        newNode = pc.createNode(cls.nodeType)
+        return cls(newNode)
+
+    def getFullPath(self):
+        return expandPath(self.getPath())
 
     def getPath(self):
-        pass
+        if self.pathReadAttr:
+            attr = self.node.attr(self.pathReadAttr)
+            return attr.get()
+        else:
+            return NotImplemented
 
-    def renamePath(self):
-        pass
+    def setPath(self, val):
+        if self.pathWriteAttr:
+            attr = self.node.attr(self.pathWriteAttr)
+        elif self.pathReadAttr:
+            attr = self.node.attr(self.pathReadAttr)
+        else:
+            return NotImplemented
+        attr.set(val)
 
-    def textureFiles(self, *args, **kwargs):
-        pass
-
-    @classmethod
-    def getAllNodes(cls):
-        for subcls in cls.__subclasses__():
-            print subcls
-
-    @classmethod
-    def register(cls, subclass):
-        cls.__subc__.append(cls)
-        ABCMeta.register(cls, subclass)
-
-    def inheritors(cls):
-        return cls.__subc__[:]
+    def getAllPaths(self):
+        return [self.getPath()]
 
     @abstractmethod
     def collect(self, dest, scene_textures=None):
         pass
 
-    @abstractmethod
     def map_texture(self, mapping):
-        pass
+        reverse = []
+        path = self.getPath()
+        if path in mapping:
+            self.setPath(mapping[path])
+            reverse.append(mapping[path], path)
+        return reverse
+
+    def get_textures(self, getAuxFiles=True):
+        ''':return: SetDict'''
+        path = self.getPath()
+        paths = self.getAllPaths()
+        paths.extend(self.getAuxFiles())
+        return SetDict({path: paths})
+
+    @classmethod
+    def getAll(cls, selection=False, referenceNodes=False):
+        return [cls(node) for node in
+                cls.getAllNodes(
+                    selection=selection, referenceNodes=referenceNodes)]
+
+    @classmethod
+    def getNodes(cls, selection=False, referenceNodes=False):
+        return pc.ls(type=cls.nodeType, sl=selection, rn=referenceNodes)
