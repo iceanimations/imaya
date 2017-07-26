@@ -1,34 +1,11 @@
 import os.path as op
 import os
 import shutil
-
 import pymel.core as pc
 
 import iutil as util
 
-
-class SetDict(dict):
-    ''' A type of dictionary which can only have sets as its values and update
-    performs union on sets
-    '''
-    def __getitem__(self, key):
-        if key not in self:
-            self[key] = set()
-        return super(SetDict, self).__getitem__(key)
-
-    def __setitem__(self, key, val):
-        if not isinstance(val, set):
-            raise TypeError('value must be a set')
-        super(SetDict, self).__setitem__(key, val)
-
-    def get(self, key, *args, **kwargs):
-        return self.__getitem__(key)
-
-    def update(self, d):
-        if not isinstance(d, SetDict):
-            raise TypeError("update argument must be a setDict")
-        for k, v in d.iteritems():
-            self[k].update(v)
+from .base import TextureNode, SetDict
 
 
 def getFileNodes(selection=False, rn=False):

@@ -164,7 +164,7 @@ geo_sets_compatible = setsCompatible
 
 
 def geo_set_valid(obj1):
-    '''  '''
+    ''' return geo set validity (content) '''
     obj1 = pc.nt.ObjectSet(obj1)
     if 'geo_set' not in obj1.name().lower():
         return False
@@ -190,7 +190,7 @@ def get_geo_sets(nonReferencedOnly=False, validOnly=False):
 
 
 def getGeoSets():
-    '''return only valid geo sets'''
+    '''return only valid (by name) geo sets'''
     try:
         return [s for s in pc.ls(exactType=pc.nt.ObjectSet) if
                 s.name().lower().endswith('_geo_set') and geo_set_valid(s)]
