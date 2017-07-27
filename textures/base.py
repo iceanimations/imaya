@@ -6,7 +6,7 @@ import pymel.core as pc
 
 
 from .setdict import SetDict
-from .utils import expandPath
+from .utils import expand_path
 
 __all__ = ['TextureNode']
 
@@ -18,56 +18,56 @@ class TextureNode(object):
     __subc__ = []
 
     @abstractproperty
-    def nodeType(self):
+    def _node_type(self):
         pass
 
     @abstractproperty
-    def pathReadAttr(self):
+    def _path_read_attr(self):
         pass
 
     @abstractproperty
-    def pathWriteAttr(self):
+    def _path_write_attr(self):
         pass
 
     @property
     def node(self):
         return self._node
 
-    def getAuxFiles(self, path):
+    def get_aux_files(self):
         return []
 
     def __init__(self, node):
         node = pc.nt.PyNode(node)
-        if node.nodeType() != self.nodeType:
-            raise TypeError('node should be of type %s' % self.nodeType)
+        if node.nodeType() != self._node_type:
+            raise TypeError('node should be of type %s' % self._node_type)
         self._node = pc.nt.PyNode(node)
 
     @classmethod
     def create(cls):
-        newNode = pc.createNode(cls.nodeType)
+        newNode = pc.createNode(cls._node_type)
         return cls(newNode)
 
-    def getFullPath(self):
-        return expandPath(self.getPath())
+    def get_full_path(self):
+        return expand_path(self.get_path())
 
-    def getPath(self):
-        if self.pathReadAttr:
-            attr = self.node.attr(self.pathReadAttr)
+    def get_path(self):
+        if self._path_read_attr:
+            attr = self.node.attr(self._path_read_attr)
             return attr.get()
         else:
             return NotImplemented
 
-    def setPath(self, val):
-        if self.pathWriteAttr:
-            attr = self.node.attr(self.pathWriteAttr)
-        elif self.pathReadAttr:
-            attr = self.node.attr(self.pathReadAttr)
+    def set_path(self, val):
+        if self._path_write_attr:
+            attr = self.node.attr(self._path_write_attr)
+        elif self._path_read_attr:
+            attr = self.node.attr(self._path_read_attr)
         else:
             return NotImplemented
         attr.set(val)
 
-    def getAllPaths(self):
-        return [self.getPath()]
+    def get_all_paths(self):
+        return [self.get_path()]
 
     @abstractmethod
     def collect(self, dest, scene_textures=None):
@@ -75,25 +75,26 @@ class TextureNode(object):
 
     def map_texture(self, mapping):
         reverse = []
-        path = self.getPath()
+        path = self.get_path()
         if path in mapping:
-            self.setPath(mapping[path])
+            self.set_path(mapping[path])
             reverse.append(mapping[path], path)
         return reverse
 
-    def get_textures(self, getAuxFiles=True):
+    def get_textures(self, aux=True, key=lambda x: True):
         ''':return: SetDict'''
-        path = self.getPath()
-        paths = self.getAllPaths()
-        paths.extend(self.getAuxFiles())
+        path = self.get_path()
+        paths = self.get_all_paths()
+        if aux:
+            paths.extend(self.get_aux_files())
         return SetDict({path: paths})
 
     @classmethod
-    def getAll(cls, selection=False, referenceNodes=False):
+    def get_all(cls, selection=False, reference_nodes=False):
         return [cls(node) for node in
-                cls.getAllNodes(
-                    selection=selection, referenceNodes=referenceNodes)]
+                cls.get_nodes(
+                    selection=selection, reference_nodes=reference_nodes)]
 
     @classmethod
-    def getNodes(cls, selection=False, referenceNodes=False):
-        return pc.ls(type=cls.nodeType, sl=selection, rn=referenceNodes)
+    def get_nodes(cls, selection=False, reference_nodes=False):
+        return pc.ls(type=cls._node_type, sl=selection, rn=reference_nodes)

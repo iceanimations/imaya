@@ -122,5 +122,3 @@ def removeNamespaceFromName(obj):
 
 def removeNamespaceFromPathName(path):
     return '|'.join([removeNamespaceFromName(x) for x in path.split('|')])
-
-

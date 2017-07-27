@@ -8,6 +8,8 @@ import iutil
 from .setdict import SetDict
 from .base import TextureNode
 
+__all__ = ['TextureMapper']
+
 
 class TextureMapper(object):
     __texture_types__ = []
@@ -34,18 +36,18 @@ class TextureMapper(object):
     def unregister_texture_type(cls, texture_type):
         cls.__texture_types__.remove(texture_type)
 
-    def getAll(self, selection=False, referenceNodes=False):
+    def get_all(self, selection=False, reference_nodes=False):
         ''':return: list of TextureNode'''
         t_nodes = []
         for typ in self.get_texture_types():
-            t_nodes.extend(typ.getAll(selection=selection,
-                                      referenceNodes=referenceNodes))
+            t_nodes.extend(typ.get_all(selection=selection,
+                                       reference_nodes=reference_nodes))
         return t_nodes
 
-    def getNodes(self, selection=False, referenceNodes=False):
+    def get_nodes(self, selection=False, reference_nodes=False):
         return [t_node.node for t_node in
-                self.getAll(selection=selection,
-                            referenceNodes=referenceNodes)]
+                self.get_all(selection=selection,
+                             reference_nodes=reference_nodes)]
 
     def collect_textures(self, dest, texture_files=None):
         ''':type texture_files: SetDict'''
@@ -56,7 +58,7 @@ class TextureMapper(object):
 
         if not texture_files:
             if not self._file_textures:
-                texture_files = self.texture_files()
+                texture_files = self.get_texture_files()
             else:
                 texture_files = self._file_textures
 
@@ -64,19 +66,19 @@ class TextureMapper(object):
             if myftn in mapping:
                 continue
             ftns, texs = iutil.find_related_ftns(myftn, texture_files.copy())
-            newmappings = iutil.lCUFTN(dest, ftns, texs)
-            for fl, copy_to in newmappings.items():
+            new_mappings = iutil.lCUFTN(dest, ftns, texs)
+            for fl, copy_to in new_mappings.items():
                 if op.exists(fl):
                     shutil.copy(fl, copy_to)
-            mapping.update(newmappings)
+            mapping.update(new_mappings)
 
         return mapping
 
-    def texture_files(self, selection=False, key=lambda x: True,
-                      getAuxFiles=True, returnAsDict=True):
+    def get_texture_files(self, selection=False, key=lambda x: True,
+                          aux=True, return_as_dict=True):
         '''return all texture files in the scene'''
         file_texs = SetDict()
-        t_nodes = self.getAll()
+        t_nodes = self.get_all()
 
         for t_node in t_nodes:
             t_texs = t_node.get_textures()
@@ -84,14 +86,13 @@ class TextureMapper(object):
 
         self._file_textures = file_texs
 
-        if returnAsDict:
+        if return_as_dict:
             return file_texs
         else:
             return list(file_texs.reduced())
 
-    @classmethod
     def map_textures(self, mapping=None, selection=False,
-                     referenceNodes=False):
+                     reference_nodes=False):
         if mapping is None:
             if self._mapping is None:
                 raise ValueError('No Mapping was found')
@@ -100,9 +101,35 @@ class TextureMapper(object):
 
         reverse = []
 
-        for t_node in self.getAll(selection=selection,
-                                  referenceNodes=referenceNodes):
+        for t_node in self.get_all(selection=selection,
+                                   reference_nodes=reference_nodes):
             for k, v in t_node.map_texture(mapping):
                 reverse[k] = v
 
         return reverse
+
+    def get_mapping(self, newdir, olddir=None, texture_files=None):
+        ''' Calculate a texture mapping dictionary
+        :newdir: the path where the textures should be mapped to
+        :olddir: the path from where the textures should be mapped from, if an
+        argument is not provided then all are mapped to this directory
+        :scene_textures: operate only on this dictionary, if an argument is not
+        provided all scene textures are mapped
+        :return: dictionary with all the mappings
+        '''
+        if not texture_files:
+            if not self._file_textures:
+                texture_files = self.get_texture_files()
+            else:
+                texture_files = self._file_textures
+
+        mapping = {}
+
+        for ftn, texs in texture_files.items():
+            alltexs = [ftn] + list(texs)
+            for tex in alltexs:
+                tex_dir, tex_base = op.split(tex)
+                if olddir is None or iutil.paths_equal(tex_dir, olddir):
+                    mapping[tex] = op.join(newdir, tex_base)
+
+        return mapping

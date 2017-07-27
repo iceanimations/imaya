@@ -4,10 +4,10 @@ import pymel.core as pc
 import os.path as op
 
 
-__all__ = ['readFullPathFromAttr', 'expandPath']
+__all__ = ['readPathAttr']
 
 
-def expandPath(path):
+def expand_path(path):
     try:
         path = pc.workspace.expandName(path)
     except:
@@ -16,8 +16,11 @@ def expandPath(path):
     return op.normpath(path)
 
 
-def readFullPathFromAttr(attr):
+def read_full_path_from_attribute(attr):
     '''the original function to be called from some functions this module
     returns fullpath according to the current workspace'''
     val = pc.getAttr(unicode(attr))
-    return expandPath(val)
+    return expand_path(val)
+
+
+readPathAttr = read_full_path_from_attribute

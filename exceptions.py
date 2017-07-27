@@ -25,4 +25,3 @@ class ShaderApplicationError(Exception):
 
     def __str__(self):
         return "ShaderApplicationError: ", self.error
-

@@ -1,159 +1,29 @@
 import os.path as op
-import os
-import shutil
 import pymel.core as pc
 
 import iutil as util
 
 from .setdict import *
 from .base import *
-from .utils import *
 from .mapper import *
-from .file_node import *
+from .filenode import *
+from .utils import *
 
 
-def getFileNodes(selection=False, rn=False):
-    return pc.ls(type='file', sl=selection, rn=rn)
-
-
-def renameFileNodePath(mapping):
-    if not mapping:
-        return False  # an exception should (idly) be raise
-    else:
-        for fileNode in pc.ls(type="file"):
-            for path in mapping:
-                if util.normpath(
-                        pc.getAttr(fileNode + ".ftn")) == util.normpath(path):
-                    pc.setAttr(fileNode + ".ftn", mapping[path])
-
-
-uvTilingModes = ['None', 'zbrush', 'mudbox', 'mari', 'explicit']
+TextureMapper.register_texture_type(FileNode)
+_mapper = TextureMapper()
 
 
 def textureFiles(selection=True, key=lambda x: True, getTxFiles=True,
                  returnAsDict=False):
-    '''
-    @key: filter the tex with it
-    :rtype setDict:
-    '''
-    ftn_to_texs = SetDict()
-    fileNodes = getFileNodes(selection)
-
-    for fn in fileNodes:
-        texs = getTexturesFromFileNode(fn, key=key, getTxFiles=True)
-        ftn_to_texs.update(texs)
-
-    if returnAsDict:
-        return ftn_to_texs
-    else:
-        return list(ftn_to_texs.reduced())
+    '''Collect texturefile paths from the scene'''
+    return _mapper.get_texture_files(selection=selection, key=key,
+                                     aux=getTxFiles,
+                                     return_as_dict=returnAsDict)
 
 
-def getTexturesFromFileNode(fn, key=lambda x: True, getTxFiles=True,
-                            getTexFiles=True):
-    ''' Given a Node of type file, get all the paths and texture files
-
-    :type fn: pc.nt.File
-    '''
-    if not isinstance(fn, pc.nt.File):
-        if not pc.nodeType == 'file':
-            raise TypeError('%s is not a file node' % fn)
-
-    texs = SetDict()
-
-    filepath = readPathAttr(fn + '.ftn')
-    uvTilingMode = uvTilingModes[0]
-
-    # New in Maya 2015
-    if pc.attributeQuery('uvTilingMode', node=fn, exists=True):
-        uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
-
-    # still attempt to resolve using tokens in string
-    if uvTilingMode == 'None':
-        uvTilingMode = str(util.detectUdim(filepath))
-    elif not uvTilingMode == 'explicit':
-        filepath = readPathAttr(fn + '.cfnp')
-
-    # definitely no udim
-    if uvTilingMode == 'None':
-        if key(filepath) and op.exists(filepath) and op.isfile(filepath):
-            texs[filepath].add(filepath)
-        if pc.getAttr(fn + '.useFrameExtension'):
-            seqTex = util.getSequenceFiles(filepath)
-            if seqTex:
-                texs[filepath].update(seqTex)
-
-    # explicit naming
-    elif uvTilingMode == 'explicit':
-        if key(filepath) and op.exists(filepath) and op.isfile(filepath):
-            texs[filepath].add(filepath)
-        indices = pc.getAttr(fn + '.euvt', mi=True)
-        for index in indices:
-            filepath = readPathAttr(fn + '.euvt[%d].eutn' % index)
-            if key(filepath) and op.exists(filepath) and op.isfile(filepath):
-                texs[filepath].add(filepath)
-
-    else:  # 'mari', 'zbrush', 'mudbox'
-        texs[filepath].update(util.getUVTiles(filepath, uvTilingMode))
-
-    if getTxFiles:
-        for k, files in texs.iteritems():
-            texs[k].update(
-                    filter(None, [util.getFileByExtension(f) for f in files]))
-
-    if getTexFiles:
-        for k, files in texs.iteritems():
-            texs[k].update(filter(None,
-                           [util.getFileByExtension(f, ext='tex')
-                            for f in files]))
-
-    return texs
-
-
-def getFullpathFromAttr(attr):
-    ''' get full path from attr
-    :type attr: pymel.core.general.Attribute
-    '''
-    node = pc.PyNode(attr).node()
-    val = node.cfnp.get()
-    # if '<f>.' not in val: val = node.ftn.get()
-    return val
-
-
-def remapFileNode(fn, mapping):
-    ''' Update file node with given mapping
-    '''
-    if not isinstance(fn, pc.nt.File):
-        if not pc.nodeType == 'file':
-            raise TypeError('%s is not a file node' % fn)
-
-    reverse = []
-    uvTilingMode = uvTilingModes[0]
-    if pc.attributeQuery('uvTilingMode', node=fn, exists=True):
-        uvTilingMode = uvTilingModes[pc.getAttr(fn + '.uvt')]
-
-    if uvTilingMode == 'None' or uvTilingMode == 'explicit':
-        path = readPathAttr(fn + '.ftn')
-        if path in mapping:
-            pc.setAttr(fn + '.ftn', mapping[path])
-            reverse.append((mapping[path], path))
-
-    if uvTilingMode == 'explicit':
-        reverse = []
-        indices = pc.getAttr(fn + '.euvt', mi=True)
-        for index in indices:
-            path = readPathAttr(fn + '.euvt[%d].eutn' % index)
-            if path in mapping:
-                pc.setAttr(fn + '.euvt[%d].eutn' % index, mapping[path])
-                reverse.append((mapping[path], path))
-
-    elif uvTilingMode in uvTilingModes[1:4]:
-        path = readPathAttr(fn + '.cfnp')
-        if path in mapping:
-            pc.setAttr(fn + '.ftn', mapping[path])
-            reverse.append((mapping[path], path))
-
-    return reverse
+def get_nodes(selection=False, rn=False):
+    _mapper.get_nodes(selection=selection, reference_nodes=rn)
 
 
 def texture_mapping(newdir, olddir=None, scene_textures=None):
@@ -165,19 +35,8 @@ def texture_mapping(newdir, olddir=None, scene_textures=None):
     provided all scene textures are mapped
     :return: dictionary with all the mappings
     '''
-    if not scene_textures:
-        scene_textures = textureFiles(selection=False, returnAsDict=True)
-
-    mapping = {}
-
-    for ftn, texs in scene_textures.items():
-        alltexs = [ftn] + list(texs)
-        for tex in alltexs:
-            tex_dir, tex_base = os.path.split(tex)
-            if olddir is None or util.paths_equal(tex_dir, olddir):
-                mapping[tex] = os.path.join(newdir, tex_base)
-
-    return mapping
+    return _mapper.texture_mapping(newdir, olddir=olddir,
+                                   texture_files=scene_textures)
 
 
 def collect_textures(dest, scene_textures=None):
@@ -187,62 +46,9 @@ def collect_textures(dest, scene_textures=None):
 
     @return: {ftn: tmp}
     '''
-
-    # normalized -> temp
-    mapping = {}
-    if not op.exists(dest):
-        return mapping
-
-    if not scene_textures:
-        scene_textures = textureFiles(selection=False, key=op.exists,
-                                      returnAsDict=True)
-
-    for myftn in scene_textures:
-        if myftn in mapping:
-            continue
-        ftns, texs = util.find_related_ftns(myftn, scene_textures.copy())
-        newmappings = util.lCUFTN(dest, ftns, texs)
-        for fl, copy_to in newmappings.items():
-            if op.exists(fl):
-                shutil.copy(fl, copy_to)
-        mapping.update(newmappings)
-    return mapping
+    _mapper.collect_texture(dest, texture_files=scene_textures)
 
 
-def createFileNodes(paths=[]):
-    for path in paths:
-        if op.exists(path):
-            # createNodes and setAttrs
-            fileNode = pc.shadingNode('file', asTexture=True)
-            pc.setAttr(str(fileNode)+".ftn", path)
-            placeNode = pc.shadingNode('place2dTexture', asUtility=True)
-
-            # default connect placeNode and fileNode
-            placeNode.coverage >> fileNode.coverage
-            placeNode.translateFrame >> fileNode.translateFrame
-            placeNode.rotateFrame >> fileNode.rotateFrame
-            placeNode.mirrorU >> fileNode.mirrorU
-            placeNode.mirrorV >> fileNode.mirrorV
-            placeNode.stagger >> fileNode.stagger
-            placeNode.wrapU >> fileNode.wrapU
-            placeNode.wrapV >> fileNode.wrapV
-            placeNode.repeatUV >> fileNode.repeatUV
-            placeNode.offset >> fileNode.offset
-            placeNode.rotateUV >> fileNode.rotateUV
-            placeNode.noiseUV >> fileNode.noiseUV
-            placeNode.vertexUvOne >> fileNode.vertexUvOne
-            placeNode.vertexUvTwo >> fileNode.vertexUvTwo
-            placeNode.vertexUvThree >> fileNode.vertexUvThree
-            placeNode.vertexCameraOne >> fileNode.vertexCameraOne
-            placeNode.outUV >> fileNode.uv
-            placeNode.outUvFilterSize >> fileNode.uvFilterSize
-
-
-def map_textures(mapping):
-    reverse = {}
-
-    for fileNode in getFileNodes():
-        for k, v in remapFileNode(fileNode, mapping):
-            reverse[k] = v
-
-    return reverse
+def map_textures(mapping=None, selection=False, rn=True):
+    return _mapper.map_textures(mapping=mapping, selection=selection,
+                                reference_nodes=rn)

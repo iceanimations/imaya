@@ -1,6 +1,9 @@
 '''Contains SetDict utility class'''
 
 
+__all__ = ['SetDict']
+
+
 class SetDict(dict):
     ''' A type of dictionary which can only have sets as its values and update
     performs union on sets
