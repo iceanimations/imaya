@@ -46,7 +46,7 @@ def collect_textures(dest, scene_textures=None):
 
     @return: {ftn: tmp}
     '''
-    _mapper.collect_texture(dest, texture_files=scene_textures)
+    _mapper.collect_textures(dest, texture_files=scene_textures)
 
 
 def map_textures(mapping=None, selection=False, rn=True):

@@ -18,7 +18,6 @@ class TextureMapper(object):
     def __init__(self):
         self._file_textures = None
         self._mapping = None
-        self._t_nodes
 
     @classmethod
     def get_texture_types(cls):
@@ -71,6 +70,8 @@ class TextureMapper(object):
                 if op.exists(fl):
                     shutil.copy(fl, copy_to)
             mapping.update(new_mappings)
+
+        self._mapping = mapping
 
         return mapping
 

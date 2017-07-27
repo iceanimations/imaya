@@ -69,10 +69,6 @@ class TextureNode(object):
     def get_all_paths(self):
         return [self.get_path()]
 
-    @abstractmethod
-    def collect(self, dest, scene_textures=None):
-        pass
-
     def map_texture(self, mapping):
         reverse = []
         path = self.get_path()

@@ -6,7 +6,7 @@ import traceback
 import os.path as op
 import os
 
-from .utils import newScene, newcomerObjs
+from .utils import newcomerObjs
 from .references import referenceExists
 
 
@@ -78,7 +78,7 @@ def extractShadersAndSave(filename, filepath, selection=True):
     pass
 
 
-def openFile(filename, prompt=1, onError='rename'):
+def openFile(filename, prompt=1, onError='rename', addRecent=False):
     if op.exists(filename):
         if op.isfile(filename):
             ext = op.splitext(filename)[-1]
@@ -89,6 +89,7 @@ def openFile(filename, prompt=1, onError='rename'):
                             filename.replace('\\', '/'), f=True,
                             options="v=0;", ignoreVersion=True, prompt=prompt,
                             loadReference="asPrefs", type=typ, o=True)
+                    pc.mel.addRecent(filename.replace('\\', '/'), typ)
                 except RuntimeError as error:
                     if 'rename' == onError:
                         cmds.file(rename=filename)

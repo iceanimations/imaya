@@ -9,6 +9,11 @@ from . import general
 
 reload(utils)
 reload(references)
+reload(textures.utils)
+reload(textures.setdict)
+reload(textures.base)
+reload(textures.mapper)
+reload(textures.filenode)
 reload(textures)
 reload(geosets)
 reload(exceptions)
