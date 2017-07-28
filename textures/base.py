@@ -1,7 +1,7 @@
 ''' Contains the base class for texture nodes '''
 
 
-from abc import ABCMeta, abstractproperty, abstractmethod
+from abc import ABCMeta, abstractproperty
 import pymel.core as pc
 
 
@@ -19,15 +19,15 @@ class TextureNode(object):
 
     @abstractproperty
     def _node_type(self):
-        pass
+        return ''
 
     @abstractproperty
     def _path_read_attr(self):
-        pass
+        return None
 
     @abstractproperty
     def _path_write_attr(self):
-        pass
+        return None
 
     @property
     def node(self):
@@ -37,10 +37,10 @@ class TextureNode(object):
         return []
 
     def __init__(self, node):
-        node = pc.nt.PyNode(node)
+        node = pc.PyNode(node)
         if node.nodeType() != self._node_type:
             raise TypeError('node should be of type %s' % self._node_type)
-        self._node = pc.nt.PyNode(node)
+        self._node = node
 
     @classmethod
     def create(cls):
@@ -53,7 +53,7 @@ class TextureNode(object):
     def get_path(self):
         if self._path_read_attr:
             attr = self.node.attr(self._path_read_attr)
-            return attr.get()
+            return expand_path(attr.get())
         else:
             return NotImplemented
 
@@ -72,9 +72,10 @@ class TextureNode(object):
     def map_texture(self, mapping):
         reverse = []
         path = self.get_path()
+        mapping
         if path in mapping:
             self.set_path(mapping[path])
-            reverse.append(mapping[path], path)
+            reverse.append((mapping[path], path))
         return reverse
 
     def get_textures(self, aux=True, key=lambda x: True):
@@ -83,6 +84,7 @@ class TextureNode(object):
         paths = self.get_all_paths()
         if aux:
             paths.extend(self.get_aux_files())
+        paths = [_path for _path in paths if key(_path)]
         return SetDict({path: paths})
 
     @classmethod

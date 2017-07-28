@@ -8,6 +8,7 @@ import iutil
 from .setdict import SetDict
 from .base import TextureNode
 
+
 __all__ = ['TextureMapper']
 
 
@@ -39,8 +40,9 @@ class TextureMapper(object):
         ''':return: list of TextureNode'''
         t_nodes = []
         for typ in self.get_texture_types():
-            t_nodes.extend(typ.get_all(selection=selection,
-                                       reference_nodes=reference_nodes))
+            new_t_nodes = typ.get_all(selection=False,
+                                      reference_nodes=False)
+            t_nodes.extend(new_t_nodes)
         return t_nodes
 
     def get_nodes(self, selection=False, reference_nodes=False):
@@ -56,10 +58,7 @@ class TextureMapper(object):
             raise IOError('%s does not exist or is not a directory' % dest)
 
         if not texture_files:
-            if not self._file_textures:
-                texture_files = self.get_texture_files()
-            else:
-                texture_files = self._file_textures
+            texture_files = self.get_texture_files()
 
         for myftn in texture_files:
             if myftn in mapping:
@@ -70,8 +69,6 @@ class TextureMapper(object):
                 if op.exists(fl):
                     shutil.copy(fl, copy_to)
             mapping.update(new_mappings)
-
-        self._mapping = mapping
 
         return mapping
 
@@ -92,15 +89,9 @@ class TextureMapper(object):
         else:
             return list(file_texs.reduced())
 
-    def map_textures(self, mapping=None, selection=False,
-                     reference_nodes=False):
-        if mapping is None:
-            if self._mapping is None:
-                raise ValueError('No Mapping was found')
-            else:
-                mapping = self._mapping
+    def map_textures(self, mapping, selection=False, reference_nodes=False):
 
-        reverse = []
+        reverse = {}
 
         for t_node in self.get_all(selection=selection,
                                    reference_nodes=reference_nodes):
@@ -132,5 +123,4 @@ class TextureMapper(object):
                 tex_dir, tex_base = op.split(tex)
                 if olddir is None or iutil.paths_equal(tex_dir, olddir):
                     mapping[tex] = op.join(newdir, tex_base)
-
         return mapping

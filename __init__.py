@@ -1,11 +1,11 @@
 
-from . import utils
 from . import textures
 from . import geosets
 from . import references
 from . import exceptions
 from . import files
 from . import general
+from . import utils
 
 reload(utils)
 reload(references)
@@ -13,6 +13,7 @@ reload(textures.utils)
 reload(textures.setdict)
 reload(textures.base)
 reload(textures.mapper)
+reload(textures.redshiftnodes)
 reload(textures.filenode)
 reload(textures)
 reload(geosets)

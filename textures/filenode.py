@@ -1,4 +1,5 @@
-'''Contains implementation'''
+'''Contains implementation of FileNode class'''
+
 import os.path as op
 
 import pymel.core as pc
@@ -9,12 +10,12 @@ from .setdict import SetDict
 from .base import TextureNode
 from .utils import read_full_path_from_attribute
 
+
 __all__ = ['FileNode', 'renameFileNodePath', 'getFullpathFromAttr',
            'createFileNodes', 'getFileNodes']
 
 
 class FileNode(TextureNode):
-
     _node_type = 'file'
     _path_read_attr = 'cfnp'
     _path_write_attr = 'ftn'
@@ -97,21 +98,22 @@ class FileNode(TextureNode):
         return texs.keys()
 
     def get_aux_files(self, tx_files=True, tex_files=True, texs=None):
-
         if texs is None:
             texs = self._get_textures()
 
-        auxs = []
-
-        if tx_files:
-            for k, files in texs.items():
-                auxs.extend([iutil.getFileByExtension(file_, ext='tx')
-                            for file_ in files])
-
-        if tex_files:
-            for k, files in texs.items():
-                auxs.extend([iutil.getFileByExtension(file_, ext='tex')
-                            for file_ in files])
+        auxs = SetDict()
+        for k, files in texs.items():
+            aux_files = []
+            for file_ in files:
+                if tx_files:
+                    tx = iutil.getFileByExtension(file_, ext='tx')
+                    if tx:
+                        aux_files.append(tx)
+                if tex_files:
+                    tex = iutil.getFileByExtension(file_, ext='tex')
+                    if tex:
+                        aux_files.append(tx)
+            auxs[k].update(aux_files)
 
         return auxs
 
@@ -120,7 +122,7 @@ class FileNode(TextureNode):
 
         if aux:
             auxs = self.get_aux_files(tx_files=tx, tex_files=tex, texs=texs)
-            texs.extend(auxs)
+            texs.update(auxs)
 
         for path, _files in texs.items():
             files = []
@@ -128,10 +130,9 @@ class FileNode(TextureNode):
                 if (key(filepath) and op.exists(filepath) and
                         op.isfile(filepath)):
                     files.append(filepath)
-            texs[path] = files
+            texs[path] = set(files)
 
         return texs
-
 
 def renameFileNodePath(mapping):
     if not mapping:
@@ -154,7 +155,7 @@ def createFileNodes(paths=[]):
 
 
 def getFileNodes(selection=False, rn=False):
-    FileNode.get_nodes(selection=selection, reference_nodes=rn)
+    return FileNode.get_nodes(selection=selection, reference_nodes=rn)
 
 
 def getFullpathFromAttr(attr):

@@ -7,10 +7,14 @@ from .setdict import *
 from .base import *
 from .mapper import *
 from .filenode import *
+from .redshiftnodes import *
 from .utils import *
 
 
 TextureMapper.register_texture_type(FileNode)
+TextureMapper.register_texture_type(RedshiftSprite)
+TextureMapper.register_texture_type(RedshiftNormalMap)
+TextureMapper.register_texture_type(RedshiftDisplacement)
 _mapper = TextureMapper()
 
 
@@ -46,9 +50,9 @@ def collect_textures(dest, scene_textures=None):
 
     @return: {ftn: tmp}
     '''
-    _mapper.collect_textures(dest, texture_files=scene_textures)
+    return _mapper.collect_textures(dest, texture_files=scene_textures)
 
 
-def map_textures(mapping=None, selection=False, rn=True):
-    return _mapper.map_textures(mapping=mapping, selection=selection,
+def map_textures(mapping, selection=False, rn=True):
+    return _mapper.map_textures(mapping, selection=selection,
                                 reference_nodes=rn)
