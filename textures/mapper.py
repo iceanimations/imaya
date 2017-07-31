@@ -122,4 +122,5 @@ class TextureMapper(object):
                 tex_dir, tex_base = op.split(tex)
                 if olddir is None or iutil.paths_equal(tex_dir, olddir):
                     mapping[tex] = op.join(newdir, tex_base)
+
         return mapping
