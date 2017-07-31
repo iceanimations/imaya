@@ -116,7 +116,6 @@ class TextureMapper(object):
                 texture_files = self._file_textures
 
         mapping = {}
-
         for ftn, texs in texture_files.items():
             alltexs = [ftn] + list(texs)
             for tex in alltexs:

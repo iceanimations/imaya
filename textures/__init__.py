@@ -18,7 +18,7 @@ TextureMapper.register_texture_type(RedshiftDisplacement)
 _mapper = TextureMapper()
 
 
-def textureFiles(selection=True, key=lambda x: True, getTxFiles=True,
+def textureFiles(selection=False, key=lambda x: True, getTxFiles=True,
                  returnAsDict=False):
     '''Collect texturefile paths from the scene'''
     return _mapper.get_texture_files(selection=selection, key=key,
@@ -39,8 +39,8 @@ def texture_mapping(newdir, olddir=None, scene_textures=None):
     provided all scene textures are mapped
     :return: dictionary with all the mappings
     '''
-    return _mapper.texture_mapping(newdir, olddir=olddir,
-                                   texture_files=scene_textures)
+    return _mapper.get_mapping(newdir, olddir=olddir,
+                               texture_files=scene_textures)
 
 
 def collect_textures(dest, scene_textures=None):
