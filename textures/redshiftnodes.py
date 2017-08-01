@@ -68,7 +68,3 @@ class RedshiftSprite(_RedshiftTextureNode):
 
 class RedshiftNormalMap(_RedshiftTextureNode):
     _node_type = 'RedshiftNormalMap'
-
-
-class RedshiftDisplacement(_RedshiftTextureNode):
-    _node_type = 'RedshiftDisplacement'
