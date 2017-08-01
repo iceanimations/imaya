@@ -9,7 +9,7 @@ from .base import TextureNode
 from .setdict import SetDict
 
 
-__all__ = ['RedshiftSprite', 'RedshiftNormalMap', 'RedshiftDisplacement']
+__all__ = ['RedshiftSprite', 'RedshiftNormalMap']
 
 
 class _RedshiftTextureNode(TextureNode):
