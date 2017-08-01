@@ -2,6 +2,7 @@
 
 import os.path as op
 import shutil
+import logging
 
 import iutil
 
@@ -9,6 +10,7 @@ from .setdict import SetDict
 from .base import TextureNode
 
 
+logger = logging.getLogger(__name__)
 __all__ = ['TextureMapper']
 
 
@@ -60,6 +62,9 @@ class TextureMapper(object):
         if not texture_files:
             texture_files = self.get_texture_files()
 
+        total = len(texture_files.reduced())
+        count = 0
+        logger.info('Max:CollectTextures:%s' % total)
         for myftn in texture_files:
             if myftn in mapping:
                 continue
@@ -67,8 +72,13 @@ class TextureMapper(object):
             new_mappings = iutil.lCUFTN(dest, ftns, texs)
             for fl, copy_to in new_mappings.items():
                 if op.exists(fl):
+                    count += 1
+                    logger.info('Progress:CollectTextures:%s of %s' % (
+                        count, total))
                     shutil.copy(fl, copy_to)
             mapping.update(new_mappings)
+        logger.info('Max:CollectTextures:0')
+        logger.info('%d Textures collected!' % total)
 
         return mapping
 
