@@ -14,7 +14,6 @@ from .utils import *
 TextureMapper.register_texture_type(FileNode)
 TextureMapper.register_texture_type(RedshiftSprite)
 TextureMapper.register_texture_type(RedshiftNormalMap)
-TextureMapper.register_texture_type(RedshiftDisplacement)
 _mapper = TextureMapper()
 
 
