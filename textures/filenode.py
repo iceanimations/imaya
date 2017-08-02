@@ -134,6 +134,7 @@ class FileNode(TextureNode):
 
         return texs
 
+
 def renameFileNodePath(mapping):
     if not mapping:
         return False  # an exception should (idly) be raise

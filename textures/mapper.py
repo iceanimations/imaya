@@ -65,6 +65,7 @@ class TextureMapper(object):
         total = len(texture_files.reduced())
         count = 0
         logger.info('Max:CollectTextures:%s' % total)
+
         for myftn in texture_files:
             if myftn in mapping:
                 continue
@@ -77,6 +78,7 @@ class TextureMapper(object):
                         count, total))
                     shutil.copy(fl, copy_to)
             mapping.update(new_mappings)
+
         logger.info('Max:CollectTextures:0')
         logger.info('%d Textures collected!' % total)
 
@@ -85,6 +87,7 @@ class TextureMapper(object):
     def get_texture_files(self, selection=False, key=lambda x: True,
                           aux=True, return_as_dict=True):
         '''return all texture files in the scene'''
+
         file_texs = SetDict()
         t_nodes = self.get_all()
 
@@ -129,8 +132,13 @@ class TextureMapper(object):
         for ftn, texs in texture_files.items():
             alltexs = [ftn] + list(texs)
             for tex in alltexs:
-                tex_dir, tex_base = op.split(tex)
-                if olddir is None or iutil.paths_equal(tex_dir, olddir):
-                    mapping[tex] = op.join(newdir, tex_base)
+                try:
+                    tex_dir, tex_base = op.split(tex)
+                    if olddir is None or iutil.paths_equal(tex_dir, olddir):
+                        mapping[tex] = op.join(newdir, tex_base)
+                except TypeError as e:
+                    import traceback
+                    print str(e)
+                    traceback.print_exc()
 
         return mapping

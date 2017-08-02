@@ -43,13 +43,16 @@ class _RedshiftTextureNode(TextureNode):
             texs = self._get_textures()
         auxs = []
         for tex in texs:
-            auxs.append(iutil.getFileByExtension(tex, 'tex'))
+            tex = iutil.getFileByExtension(tex, 'tex')
+            if tex:
+                auxs.append(tex)
         return auxs
 
     def get_textures(self, aux=True, key=lambda x: True):
         path = self.get_path()
         files = self._get_textures()
         if aux:
+            print self.get_aux_files(files)
             files.extend(self.get_aux_files(files))
         files = [file_ for file_ in files if key(file_)]
         return SetDict({path: files})
