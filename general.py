@@ -753,7 +753,7 @@ def resolveAOVsInPath(path, layer, cam, framePadder='?'):
     if renderer == 'redshift':
         tokens = OrderedDict()
 
-        tokens['<beautypath>'] = op.dirname(path)
+        tokens['<beautypath>'] = op.dirname(path).replace('\\', r'\\')
 
         basename = op.basename(path)
         number = ''
