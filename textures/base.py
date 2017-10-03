@@ -55,7 +55,7 @@ class TextureNode(object):
             attr = self.node.attr(self._path_read_attr)
             return expand_path(attr.get())
         else:
-            return NotImplemented
+            raise NotImplementedError
 
     def set_path(self, val):
         if self._path_write_attr:
@@ -63,7 +63,7 @@ class TextureNode(object):
         elif self._path_read_attr:
             attr = self.node.attr(self._path_read_attr)
         else:
-            return NotImplemented
+            raise NotImplementedError
         attr.set(val)
 
     def get_all_paths(self):
