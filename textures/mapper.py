@@ -8,6 +8,7 @@ import iutil
 
 from .setdict import SetDict
 from .base import TextureNode
+from .pathmap import PathMapping
 
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class TextureMapper(object):
 
     def collect_textures(self, dest, texture_files=None):
         ''':type texture_files: SetDict'''
-        mapping = {}
+        mapping = PathMapping()
 
         if not op.exists(dest) or not op.isdir(dest):
             raise IOError('%s does not exist or is not a directory' % dest)
@@ -128,7 +129,7 @@ class TextureMapper(object):
             else:
                 texture_files = self._file_textures
 
-        mapping = {}
+        mapping = PathMapping()
         for ftn, texs in texture_files.items():
             alltexs = [ftn] + list(texs)
             for tex in alltexs:

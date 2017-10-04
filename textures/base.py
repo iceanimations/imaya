@@ -72,7 +72,6 @@ class TextureNode(object):
     def map_texture(self, mapping):
         reverse = []
         path = self.get_path()
-        mapping
         if path in mapping:
             self.set_path(mapping[path])
             reverse.append((mapping[path], path))

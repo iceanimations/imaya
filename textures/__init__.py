@@ -9,6 +9,7 @@ from .mapper import *
 from .filenode import *
 from .redshiftnodes import *
 from .utils import *
+from .pathmap import *
 
 
 TextureMapper.register_texture_type(FileNode)
