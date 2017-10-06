@@ -40,6 +40,7 @@ def getCombinedMeshFromSet(_set, midfix='shaded'):
     meshName = _set.name().replace('_geo_', '_' + midfix + '_').replace(
             '_set', '_combined')
     if len(meshes) == 1:
+        pc.mel.DeleteHistory()
         mesh = pc.duplicate(ic=True, name=meshName)[0]
         pc.parent(mesh, w=True)
         meshes[0].io.set(True)

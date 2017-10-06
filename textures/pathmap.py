@@ -7,7 +7,11 @@ __all__ = ['PathMapping']
 
 
 class PathMapping(dict):
-    '''Path Map'''
+    '''An extension of a python dictionary which enables lookups for paths
+    using tokens.
+    Misses / or token based lookups cost n where n is the size of the
+    dictionary'''
+
     curdir = '.'
 
     __tokens__ = {
@@ -15,7 +19,7 @@ class PathMapping(dict):
             '<udim>': r'\d{4}',
             '\\?+': lambda tt: '\d{%d}' % len(tt),
             '#+': lambda tt: '\d{%d}' % len(tt)
-            }
+    }
 
     @classmethod
     def token_re(cls, token_type):
@@ -97,4 +101,3 @@ class PathMapping(dict):
         return self.key_matches(key)
 
     has_key = __contains__
-
