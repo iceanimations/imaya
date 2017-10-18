@@ -33,7 +33,7 @@ class _RedshiftTextureNode(TextureNode):
             tiles = iutil.getUVTiles(path, udim_mode)
             files.extend(tiles)
 
-        if os.path.exists(path):
+        if os.path.exists(path) and os.path.isfile(path):
             files.append(path)
 
         return files

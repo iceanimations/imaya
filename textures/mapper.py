@@ -73,7 +73,7 @@ class TextureMapper(object):
             ftns, texs = iutil.find_related_ftns(myftn, texture_files.copy())
             new_mappings = iutil.lCUFTN(dest, ftns, texs)
             for fl, copy_to in new_mappings.items():
-                if op.exists(fl):
+                if op.exists(fl) and op.isfile(fl):
                     count += 1
                     logger.info('Progress:CollectTextures:%s of %s' % (
                         count, total))
