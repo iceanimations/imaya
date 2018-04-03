@@ -1,37 +1,51 @@
 import random
+import re
 
 import pymel.core as pc
 
-from .references import getReferences
-from .utils import getNiceName, isMesh, removeNamespaceFromPathName
+from .references import getReferences, createReference, removeReference
+from .utils import isMesh, removeNamespaceFromPathName
 
 
-def getRefFromSet(geoset):
+GEO_SET_PATTERN = re.compile(
+        r'(.*?)\|?([^|]*?):?([^\^:|]+)(_geo_set)$', re.IGNORECASE)
+
+
+def get_reference_from_geo_set(geo_set):
     for ref in getReferences(loaded=True):
-        if geoset in ref.nodes():
+        if geo_set in ref.nodes():
             return ref
 
 
-def getMeshFromSet(ref):
-    meshes = []
+def is_geo_set(node, pattern=None):
+    if type(node) == pc.nt.ObjectSet:
+        return GEO_SET_PATTERN.match(pc.nt.ObjectSet(node))
+
+
+def get_geo_sets_from_reference(ref, valid_only=False):
+    sets = []
+    check_func = geo_set_valid if valid_only else is_geo_set
     if ref:
+        sets = [obj for obj in ref.nodes() if check_func(obj)]
+    return sets
+
+
+def geo_set_valid(obj1):
+    ''' return geo set validity (content) '''
+    if not is_geo_set(obj1):
+        return False
+    for i in range(len(obj1)):
         try:
-            _set = [obj for obj in ref.nodes() if 'geo_set' in obj.name() and
-                    type(obj) == pc.nt.ObjectSet][0]
-            meshes = [
-                    shape
-                    for transform in
-                    pc.PyNode(_set).dsm.inputs(type="transform")
-                    for shape in transform.getShapes(type="mesh", ni=True)]
-            combinedMesh = pc.polyUnite(ch=1, mergeUVSets=1, *meshes)[0]
-            combinedMesh.rename(getNiceName(_set) + '_combinedMesh')
-            return [combinedMesh]  # put the first element in list and return
+            member = obj1.dagSetMembers[i].inputs()[0]
+            mesh = member.getShape(type='mesh', ni=True)
         except:
-            return meshes
-    return meshes
+            return False
+        if not mesh or not mesh.numVertices():
+            return False
+    return True
 
 
-def getCombinedMeshFromSet(_set, midfix='shaded'):
+def get_combined_mesh_from_set(_set, midfix='shaded'):
     meshes = [shape for transform in _set.dsm.inputs() for shape in
               transform.getShapes(ni=True, type='mesh')]
     if not meshes:
@@ -56,7 +70,14 @@ def getCombinedMeshFromSet(_set, midfix='shaded'):
     return mesh
 
 
-def meshesCompatible(mesh1, mesh2, max_tries=100, feedback=False):
+def get_combined_meshes_from_ref(ref, midfix='shaded'):
+    meshes = []
+    for _set in get_geo_sets_from_reference(ref):
+        meshes.append(get_combined_mesh_from_set, midfix=midfix)
+    return meshes
+
+
+def meshes_compatible(mesh1, mesh2, max_tries=100, feedback=False):
     reasons = {}
     status = True
 
@@ -103,7 +124,7 @@ def meshesCompatible(mesh1, mesh2, max_tries=100, feedback=False):
         return status
 
 
-def setsCompatible(obj1, obj2, feedback=False):
+def geo_sets_compatible(obj1, obj2, feedback=False):
     '''
     returns True if two ObjectSets are compatible for cache
     '''
@@ -146,8 +167,10 @@ def setsCompatible(obj1, obj2, feedback=False):
                     reasons['unmatched'][i] = (
                             removeNamespaceFromPathName(mesh1),
                             removeNamespaceFromPathName(mesh2), mesh_reasons)
+
         except IndexError:
             pass
+
         except TypeError as exc:
             import traceback
             traceback.print_exc()
@@ -161,47 +184,78 @@ def setsCompatible(obj1, obj2, feedback=False):
         return flag, reasons
     return flag
 
-geo_sets_compatible = setsCompatible
 
-
-def geo_set_valid(obj1):
-    ''' return geo set validity (content) '''
-    obj1 = pc.nt.ObjectSet(obj1)
-    if 'geo_set' not in obj1.name().lower():
-        return False
-    for i in range(len(obj1)):
-        try:
-            member = obj1.dagSetMembers[i].inputs()[0]
-            mesh = member.getShape(type='mesh', ni=True)
-        except:
-            return False
-        if not mesh or not mesh.numVertices():
-            return False
-    return True
-
-
-def get_geo_sets(nonReferencedOnly=False, validOnly=False):
+def get_geo_sets(nonReferencedOnly=False, valid_only=False):
     geosets = []
+
     for node in pc.ls(exactType='objectSet'):
-        if ('geo_set' in node.name().lower() and
+        if (is_geo_set(node) and
                 (not nonReferencedOnly or not node.isReferenced()) and
-                (not validOnly or geo_set_valid(node))):
+                (not valid_only or geo_set_valid(node))):
             geosets.append(node)
+
     return geosets
 
 
-def getGeoSets():
-    '''return only valid (by name) geo sets'''
+def refs_compatible(ref1, ref2=None, feedback=False):
+    reasons = dict()
+
     try:
-        return [s for s in pc.ls(exactType=pc.nt.ObjectSet) if
-                s.name().lower().endswith('_geo_set') and geo_set_valid(s)]
-    except IndexError:
-        pass
+        sets1 = sorted(get_geo_sets_from_reference(ref1, valid_only=True))
+        if ref2 is None:
+            sets2 = get_geo_sets(nonReferencedOnly=True, valid_only=False)
+        else:
+            sets2 = sorted(get_geo_sets_from_reference(ref2, valid_only=True))
+
+    except (AttributeError, TypeError) as exc:
+        reasons['errors'] = [(exc.__class__.__name__, str(exc))]
+
+    flag = True
+    if len(sets1) != len(sets2):
+        reasons['sets'] = 'number of valid geo sets is different'
+        flag = False
+
+    count = 0
+    for set1, set2 in zip(sets1, sets2):
+        compatible, reasons = geo_sets_compatible(set1, set2, True)
+        if not compatible:
+            flag = False
+            reasons['umatched_sets'][count] = (
+                    removeNamespaceFromPathName(set1),
+                    removeNamespaceFromPathName(set2), reasons)
+
+    if feedback:
+        return flag, reasons
+    return flag
 
 
-def find_geo_set_in_ref(ref,
-                        key=lambda node: 'geo_set' in node.name().lower()):
-    for node in ref.nodes():
-        if pc.nodeType(node) == 'objectSet':
-            if key(node):
-                return node
+def current_scene_compatible_with_ref(ref, feedback=False):
+    return refs_compatible(ref, feedback=feedback)
+
+
+def current_scene_compatible(_file, feedback=False):
+    flag = True
+    reasons = dict()
+
+    try:
+        ref = createReference(_file)
+        flag, reasons = current_scene_compatible_with_ref(ref, True)
+
+    except Exception as exc:
+        flag = False
+        reasons['errors'] = [(exc.__class__.__name__, str(exc))]
+
+    finally:
+        if ref:
+            removeReference(ref)
+
+    if feedback:
+        return flag, reasons
+    return flag
+
+
+meshesCompatible = meshes_compatible
+setsCompatible = geo_sets_compatible
+getGeoSets = get_geo_sets
+currentSceneCompatible = current_scene_compatible
+currentSceneCompatibleWithRef = current_scene_compatible_with_ref
