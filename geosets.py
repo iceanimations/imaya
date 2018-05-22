@@ -67,11 +67,11 @@ def get_combined_mesh_from_set(_set, midfix='shaded'):
 def get_combined_meshes_from_ref(ref=None, midfix='shaded'):
     meshes = []
     if ref is None:
-        sets = get_geo_sets_from_reference(ref)
+        sets = get_geo_sets(True, True)
     else:
-        sets = get_geo_sets(non_referenced_only=True, valid_only=True)
-    for _set in sets: 
-        meshes.append(get_combined_mesh_from_set, midfix=midfix)
+        sets = get_geo_sets_from_reference(ref)
+    for _set in sets:
+        meshes.append(get_combined_mesh_from_set(_set, midfix=midfix))
     return meshes
 
 
