@@ -11,15 +11,9 @@ GEO_SET_PATTERN = re.compile(
         r'(.*?)\|?([^|]*?):?([^\^:|]+)(_geo_set)$', re.IGNORECASE)
 
 
-def get_reference_from_geo_set(geo_set):
-    for ref in getReferences(loaded=True):
-        if geo_set in ref.nodes():
-            return ref
-
-
 def is_geo_set(node, pattern=None):
     if type(node) == pc.nt.ObjectSet:
-        return GEO_SET_PATTERN.match(pc.nt.ObjectSet(node))
+        return GEO_SET_PATTERN.match(str(pc.nt.ObjectSet(node)))
 
 
 def get_geo_sets_from_reference(ref, valid_only=False):
@@ -70,11 +64,19 @@ def get_combined_mesh_from_set(_set, midfix='shaded'):
     return mesh
 
 
-def get_combined_meshes_from_ref(ref, midfix='shaded'):
+def get_combined_meshes_from_ref(ref=None, midfix='shaded'):
     meshes = []
-    for _set in get_geo_sets_from_reference(ref):
+    if ref is None:
+        sets = get_geo_sets_from_reference(ref)
+    else:
+        sets = get_geo_sets(non_referenced_only=True, valid_only=True)
+    for _set in sets: 
         meshes.append(get_combined_mesh_from_set, midfix=midfix)
     return meshes
+
+
+def get_combined_meshes_from_current_scene(midfix='shaded'):
+    return get_combined_meshes_from_ref(midfix=midfix)
 
 
 def meshes_compatible(mesh1, mesh2, max_tries=100, feedback=False):
@@ -185,12 +187,12 @@ def geo_sets_compatible(obj1, obj2, feedback=False):
     return flag
 
 
-def get_geo_sets(nonReferencedOnly=False, valid_only=False):
+def get_geo_sets(non_referenced_only=False, valid_only=False):
     geosets = []
 
     for node in pc.ls(exactType='objectSet'):
         if (is_geo_set(node) and
-                (not nonReferencedOnly or not node.isReferenced()) and
+                (not non_referenced_only or not node.isReferenced()) and
                 (not valid_only or geo_set_valid(node))):
             geosets.append(node)
 
@@ -203,7 +205,7 @@ def refs_compatible(ref1, ref2=None, feedback=False):
     try:
         sets1 = sorted(get_geo_sets_from_reference(ref1, valid_only=True))
         if ref2 is None:
-            sets2 = get_geo_sets(nonReferencedOnly=True, valid_only=False)
+            sets2 = get_geo_sets(non_referenced_only=True, valid_only=False)
         else:
             sets2 = sorted(get_geo_sets_from_reference(ref2, valid_only=True))
 
@@ -212,17 +214,31 @@ def refs_compatible(ref1, ref2=None, feedback=False):
 
     flag = True
     if len(sets1) != len(sets2):
-        reasons['sets'] = 'number of valid geo sets is different'
         flag = False
+        if feedback:
+            reasons['sets'] = (
+                    'number of valid geo sets (%d, %d) is different' % (
+                        len(sets1), len(sets2)))
+            return flag, reasons
+        else:
+            return flag
 
     count = 0
     for set1, set2 in zip(sets1, sets2):
-        compatible, reasons = geo_sets_compatible(set1, set2, True)
+        if feedback:
+            compatible, _reasons = geo_sets_compatible(set1, set2, True)
+        else:
+            compatible = geo_sets_compatible(set1, set2, False)
         if not compatible:
             flag = False
-            reasons['umatched_sets'][count] = (
-                    removeNamespaceFromPathName(set1),
-                    removeNamespaceFromPathName(set2), reasons)
+            if feedback:
+                if 'unmatched_sets' not in reasons:
+                    reasons['unmatched_sets'] = {}
+                reasons['unmatched_sets'][count] = (
+                        str(set1), str(set2), _reasons)
+                count += 1
+            else:
+                break
 
     if feedback:
         return flag, reasons
@@ -254,8 +270,11 @@ def current_scene_compatible(_file, feedback=False):
     return flag
 
 
+# names for backward compatibility
 meshesCompatible = meshes_compatible
 setsCompatible = geo_sets_compatible
 getGeoSets = get_geo_sets
 currentSceneCompatible = current_scene_compatible
 currentSceneCompatibleWithRef = current_scene_compatible_with_ref
+getCombinedMeshFromSet = get_combined_mesh_from_set
+geoSetValid = geo_set_valid
