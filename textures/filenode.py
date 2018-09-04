@@ -133,6 +133,12 @@ class FileNode(TextureNode):
             texs[path] = set(files)
 
         return texs
+    
+    def set_path(self, val):
+        cs = self.node.colorSpace.get()
+        super(FileNode, self).set_path(val)
+        self.node.colorSpace.set(cs)
+        
 
 
 def renameFileNodePath(mapping):
@@ -143,7 +149,9 @@ def renameFileNodePath(mapping):
             for path in mapping:
                 if iutil.normpath(
                         pc.getAttr(fileNode + ".ftn")) == iutil.normpath(path):
+                    cs = fileNode.colorSpace.get()
                     pc.setAttr(fileNode + ".ftn", mapping[path])
+                    fileNode.colorSpace.set(cs)
 
 
 def createFileNodes(paths=[]):
