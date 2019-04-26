@@ -112,7 +112,7 @@ class FileNode(TextureNode):
                 if tex_files:
                     tex = iutil.getFileByExtension(file_, ext='tex')
                     if tex:
-                        aux_files.append(tx)
+                        aux_files.append(tex)
             auxs[k].update(aux_files)
 
         return auxs
